@@ -1,0 +1,61 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # 原始压缩包里的 bun.lock 是 0 字节，已移除，这里直接解析 package.json
+      - name: Install dependencies
+        working-directory: app
+        run: bun install
+
+      - name: Build React app
+        working-directory: app
+        run: bun run build
+
+      # 组装站点：/ 选择页 · /app/ 重制版 · /classic/ 单文件版
+      - name: Assemble site
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          cp -r app/dist _site/app
+          mkdir -p _site/classic
+          cp classic/index.html _site/classic/index.html
+          touch _site/.nojekyll
+          find _site -maxdepth 2 -type f | sort
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

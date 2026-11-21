@@ -1,0 +1,6 @@
+{
+  "name": "术士之战 — Warlock Brawl",
+  "description": "魔兽争霸3经典RPG《术士之战》完整网页版：岩浆缩圈竞技场、击退弹射物理、六大经典法术、符文商店升级与多流派AI术士锦标赛。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

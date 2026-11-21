@@ -1,0 +1,3268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>术士之战 · Warlock Brawl (War3 RPG 网页版)</title>
+<style>
+  :root {
+    --bg-dark: #0d0a0c;
+    --panel-bg: rgba(18, 14, 20, 0.92);
+    --panel-border: #5c4529;
+    --gold: #f5c542;
+    --gold-dim: #b58c2a;
+    --ember: #ff5722;
+    --arcane: #7c4dff;
+    --hp-green: #2ecc71;
+    --hp-red: #e74c3c;
+    --text-main: #f3ead8;
+    --text-muted: #a69986;
+  }
+
+  * {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg-dark);
+    color: var(--text-main);
+    font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+
+  #game-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  #arena-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  /* Top HUD Bar */
+  #top-hud {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    pointer-events: none;
+    z-index: 20;
+    flex-wrap: wrap;
+  }
+
+  .hud-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: auto;
+  }
+
+  .hud-pill {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 215, 130, 0.14);
+    border-radius: 8px;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    backdrop-filter: blur(6px);
+  }
+
+  .hud-pill .label {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 12px;
+  }
+
+  .hud-pill .val-gold { color: var(--gold); }
+  .hud-pill .val-ember { color: #ff8a50; }
+  .hud-pill .val-alive { color: #69f0ae; }
+
+  .hud-btn {
+    background: linear-gradient(180deg, #2d2320 0%, #1a1414 100%);
+    border: 1px solid #6e5332;
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 6px 11px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s, border-color 0.15s, background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+  }
+
+  .hud-btn:hover {
+    border-color: var(--gold);
+    background: linear-gradient(180deg, #3f2f26 0%, #241a18 100%);
+  }
+
+  .hud-btn:active { transform: scale(0.96); }
+
+  .hud-btn.primary {
+    background: linear-gradient(180deg, #b85d19 0%, #7d330c 100%);
+    border-color: #ffab40;
+    color: #fff8e7;
+  }
+
+  .hud-btn.primary:hover {
+    background: linear-gradient(180deg, #d66f1f 0%, #963f10 100%);
+  }
+
+  /* Kill Feed */
+  #kill-feed {
+    position: absolute;
+    top: 58px;
+    right: 12px;
+    width: 270px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+    z-index: 18;
+  }
+
+  .kill-item {
+    background: rgba(15, 11, 14, 0.82);
+    border-left: 3px solid var(--ember);
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--text-main);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    animation: slideInRight 0.25s ease-out;
+  }
+
+  @keyframes slideInRight {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Center Announcement Banner */
+  #center-banner {
+    position: absolute;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    pointer-events: none;
+    z-index: 25;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+
+  #center-banner.visible { opacity: 1; }
+
+  #center-banner-title {
+    font-size: clamp(22px, 4vw, 38px);
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #ffe082;
+    text-shadow: 0 2px 16px rgba(255, 87, 34, 0.85), 0 3px 6px #000;
+  }
+
+  #center-banner-sub {
+    margin-top: 6px;
+    font-size: 14px;
+    color: #f3ead8;
+    background: rgba(15, 10, 12, 0.78);
+    border: 1px solid rgba(245, 197, 66, 0.4);
+    border-radius: 999px;
+    padding: 4px 16px;
+    display: inline-block;
+  }
+
+  /* Bottom WC3 Command Bar */
+  #bottom-hud {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(98%, 940px);
+    background: linear-gradient(180deg, rgba(28, 21, 24, 0.94) 0%, rgba(14, 10, 13, 0.97) 100%);
+    border: 2px solid #6b4e2b;
+    border-radius: 12px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 215, 130, 0.18);
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    z-index: 20;
+  }
+
+  .hero-status {
+    min-width: 175px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .hero-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .hp-bar-wrap {
+    position: relative;
+    height: 18px;
+    background: #1a1214;
+    border: 1px solid #4a3723;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .hp-bar-fill {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, #27ae60, #2ecc71);
+    transition: width 0.12s linear;
+  }
+
+  .hp-bar-fill.low {
+    background: linear-gradient(90deg, #c0392b, #e74c3c);
+  }
+
+  .hp-bar-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    text-shadow: 0 1px 2px #000;
+  }
+
+  .item-mini-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+
+  .item-mini-slot {
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    background: #181318;
+    border: 1px solid #493828;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    position: relative;
+    cursor: default;
+  }
+
+  .item-mini-slot.owned {
+    border-color: var(--gold-dim);
+    background: #2b211a;
+  }
+
+  .item-mini-lvl {
+    position: absolute;
+    bottom: -2px;
+    right: -1px;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 1px 2px #000;
+  }
+
+  /* Spell Bar */
+  #spell-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 2px 0;
+  }
+
+  .spell-slot {
+    position: relative;
+    width: 58px;
+    height: 62px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #261e26 0%, #141016 100%);
+    border: 2px solid #614a2f;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
+    overflow: hidden;
+  }
+
+  .spell-slot:hover:not(.locked) {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 197, 66, 0.25);
+  }
+
+  .spell-slot.locked {
+    opacity: 0.42;
+    border-color: #352b2a;
+    filter: grayscale(0.8);
+  }
+
+  .spell-slot.selected {
+    border-color: #ffab40;
+    box-shadow: 0 0 12px rgba(255, 171, 64, 0.65);
+  }
+
+  .spell-slot.on-cd {
+    border-color: #463a42;
+  }
+
+  .spell-icon {
+    font-size: 22px;
+    line-height: 1;
+    margin-bottom: 2px;
+  }
+
+  .spell-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: #e6dcc8;
+    white-space: nowrap;
+  }
+
+  .spell-key {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--gold);
+    text-shadow: 0 1px 2px #000;
+  }
+
+  .spell-lvl {
+    position: absolute;
+    top: 2px;
+    right: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    color: #80d8ff;
+    text-shadow: 0 1px 2px #000;
+  }
+
+  .spell-cd-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 6, 10, 0.78);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    pointer-events: none;
+  }
+
+  .hud-right-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 112px;
+  }
+
+  /* Modals */
+  .modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 6, 9, 0.78);
+    backdrop-filter: blur(5px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 40;
+    padding: 14px;
+  }
+
+  .modal-backdrop.open { display: flex; }
+
+  .modal-card {
+    width: min(100%, 820px);
+    max-height: 90vh;
+    overflow-y: auto;
+    background: linear-gradient(180deg, #1d161b 0%, #120e12 100%);
+    border: 2px solid #7a5a32;
+    border-radius: 14px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.85);
+    padding: 20px 22px;
+  }
+
+  .modal-card.narrow { width: min(100%, 540px); }
+
+  .modal-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid rgba(122, 90, 50, 0.45);
+    padding-bottom: 10px;
+  }
+
+  /* Start Screen */
+  .hero-logo {
+    text-align: center;
+    margin-bottom: 18px;
+  }
+
+  .hero-logo h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 900;
+    letter-spacing: 3px;
+    background: linear-gradient(180deg, #fff3c4 0%, #f5b935 55%, #d9531e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 3px 12px rgba(255, 87, 34, 0.45));
+  }
+
+  .hero-logo p {
+    color: var(--text-muted);
+    font-size: 13px;
+    margin-top: 6px;
+  }
+
+  .setup-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 480px) {
+    .setup-grid { grid-template-columns: 1fr; }
+  }
+
+  .setup-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #443427;
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  .setup-box label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .opt-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .opt-chip {
+    flex: 1;
+    min-width: 56px;
+    padding: 6px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    border: 1px solid #4c3b2c;
+    background: #1a1418;
+    color: var(--text-main);
+    cursor: pointer;
+    text-align: center;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+
+  .opt-chip.active {
+    background: linear-gradient(180deg, #a85218 0%, #6e2d0c 100%);
+    border-color: var(--gold);
+    color: #fff;
+  }
+
+  .control-hints {
+    background: rgba(245, 197, 66, 0.06);
+    border: 1px solid rgba(245, 197, 66, 0.22);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    color: #dfd3be;
+    line-height: 1.7;
+    margin-bottom: 18px;
+  }
+
+  .control-hints kbd {
+    background: #2c2224;
+    border: 1px solid #6c5338;
+    border-radius: 4px;
+    padding: 1px 5px;
+    font-family: monospace;
+    color: var(--gold);
+    font-size: 11px;
+  }
+
+  .start-cta {
+    width: 100%;
+    padding: 13px;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    border-radius: 10px;
+    border: 2px solid #ffca62;
+    background: linear-gradient(180deg, #d86b1a 0%, #8a320b 100%);
+    color: #fffaf0;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(216, 107, 26, 0.45);
+    transition: transform 0.12s, filter 0.15s;
+  }
+
+  .start-cta:hover { filter: brightness(1.12); }
+  .start-cta:active { transform: scale(0.98); }
+
+  /* Shop UI */
+  .shop-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .shop-tab {
+    padding: 7px 14px;
+    border-radius: 8px;
+    border: 1px solid #513d2a;
+    background: #1b151a;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .shop-tab.active {
+    background: #36261d;
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
+  .shop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+    gap: 10px;
+  }
+
+  .shop-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #48382b;
+    border-radius: 10px;
+    padding: 11px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    transition: border-color 0.15s;
+  }
+
+  .shop-card:hover { border-color: #8f6b3d; }
+
+  .shop-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .shop-card-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: #251c24;
+    border: 1px solid #6b5031;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 21px;
+    flex-shrink: 0;
+  }
+
+  .shop-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff3d6;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .shop-card-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.45;
+    margin-top: 3px;
+  }
+
+  .shop-card-stats {
+    font-size: 11px;
+    color: #a8d8ff;
+    background: rgba(0, 0, 0, 0.28);
+    border-radius: 6px;
+    padding: 5px 7px;
+  }
+
+  .shop-buy-btn {
+    width: 100%;
+    padding: 7px 10px;
+    border-radius: 7px;
+    border: 1px solid #8a6938;
+    background: linear-gradient(180deg, #4b3522 0%, #2e2015 100%);
+    color: var(--gold);
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+
+  .shop-buy-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #694a2d 0%, #422c1b 100%);
+    border-color: var(--gold);
+  }
+
+  .shop-buy-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    color: #9e9386;
+  }
+
+  .shop-footer {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(122, 90, 50, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  /* Scoreboard Table */
+  .score-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+
+  .score-table th, .score-table td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .score-table th {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .score-table tr.is-player {
+    background: rgba(245, 197, 66, 0.1);
+  }
+
+  .swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 6px;
+  }
+
+  /* Toast */
+  #toast {
+    position: absolute;
+    bottom: 92px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(24, 17, 20, 0.94);
+    border: 1px solid var(--gold);
+    color: #fff3d1;
+    padding: 7px 16px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  #toast.show { opacity: 1; }
+
+  /* Touch Virtual Joystick */
+  #touch-joystick {
+    position: absolute;
+    bottom: 96px;
+    left: 18px;
+    width: 104px;
+    height: 104px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid rgba(245, 197, 66, 0.35);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 22;
+    touch-action: none;
+  }
+
+  #touch-knob {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: rgba(245, 197, 66, 0.72);
+    box-shadow: 0 0 12px rgba(245, 197, 66, 0.5);
+    pointer-events: none;
+  }
+
+  @media (max-width: 760px) {
+    #bottom-hud {
+      flex-wrap: wrap;
+      padding: 6px 8px;
+      gap: 6px;
+    }
+    .hero-status {
+      min-width: 100%;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .hp-bar-wrap { flex: 1; margin: 0 8px; }
+    .hud-right-actions {
+      flex-direction: row;
+      width: 100%;
+    }
+    .hud-right-actions button { flex: 1; justify-content: center; }
+    .spell-slot { width: 48px; height: 54px; }
+    .spell-icon { font-size: 18px; }
+    #kill-feed { width: 190px; top: 96px; }
+  }
+</style>
+</head>
+<body>
+<div id="game-root">
+  <canvas id="arena-canvas"></canvas>
+
+  <!-- Top HUD -->
+  <div id="top-hud">
+    <div class="hud-group">
+      <div class="hud-pill">
+        <span class="label">回合</span>
+        <span id="hud-round">1 / 7</span>
+      </div>
+      <div class="hud-pill">
+        <span class="label" id="hud-phase-label">状态</span>
+        <span id="hud-timer" class="val-ember">准备中</span>
+      </div>
+      <div class="hud-pill">
+        <span class="label">存活</span>
+        <span id="hud-alive" class="val-alive">6 / 6</span>
+      </div>
+      <div class="hud-pill">
+        <span class="label">金币</span>
+        <span id="hud-gold" class="val-gold">25G</span>
+      </div>
+      <div class="hud-pill">
+        <span class="label">击杀</span>
+        <span id="hud-kills">0</span>
+      </div>
+    </div>
+
+    <div class="hud-group">
+      <button class="hud-btn" id="btn-scoreboard" title="查看战绩 (Tab)">🏆 战绩</button>
+      <button class="hud-btn" id="btn-help" title="玩法说明">❓ 帮助</button>
+      <button class="hud-btn" id="btn-sound" title="音效开关">🔊 音效</button>
+      <button class="hud-btn" id="btn-pause" title="暂停游戏 (P)">⏸ 暂停</button>
+    </div>
+  </div>
+
+  <!-- Kill Feed -->
+  <div id="kill-feed"></div>
+
+  <!-- Center Announcement -->
+  <div id="center-banner">
+    <div id="center-banner-title">第 1 回合开始！</div>
+    <div id="center-banner-sub">将敌人击飞至岩浆中获胜</div>
+  </div>
+
+  <!-- Touch Joystick -->
+  <div id="touch-joystick"><div id="touch-knob"></div></div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+
+  <!-- Bottom WC3 Command Bar -->
+  <div id="bottom-hud">
+    <div class="hero-status">
+      <div class="hero-header">
+        <span id="hero-name" style="color:#ffd54f;">大术士 (你)</span>
+        <span id="hero-lava-warn" style="color:#ff5252;display:none;">🔥 岩浆灼烧!</span>
+      </div>
+      <div class="hp-bar-wrap">
+        <div class="hp-bar-fill" id="hero-hp-fill"></div>
+        <div class="hp-bar-text" id="hero-hp-text">120 / 120</div>
+      </div>
+      <div class="item-mini-row" id="hero-items-mini"></div>
+    </div>
+
+    <div id="spell-bar"></div>
+
+    <div class="hud-right-actions">
+      <button class="hud-btn primary" id="btn-shop">🛒 商店 (B)</button>
+      <button class="hud-btn" id="btn-ready" style="display:none;">⚔️ 立即开战</button>
+    </div>
+  </div>
+
+  <!-- Start Screen Modal -->
+  <div class="modal-backdrop open" id="modal-start">
+    <div class="modal-card narrow">
+      <div class="hero-logo">
+        <h1>术士之战</h1>
+        <p>WARCRAFT III RPG · WARLOCK BRAWL 完整网页版</p>
+      </div>
+
+      <div class="setup-grid">
+        <div class="setup-box">
+          <label>赛制回合</label>
+          <div class="opt-row" data-setting="rounds">
+            <button class="opt-chip" data-val="5">5回合</button>
+            <button class="opt-chip active" data-val="7">7回合</button>
+            <button class="opt-chip" data-val="10">10回合</button>
+          </div>
+        </div>
+        <div class="setup-box">
+          <label>对手数量</label>
+          <div class="opt-row" data-setting="aiCount">
+            <button class="opt-chip" data-val="3">3名AI</button>
+            <button class="opt-chip active" data-val="5">5名AI</button>
+            <button class="opt-chip" data-val="7">7名AI</button>
+          </div>
+        </div>
+        <div class="setup-box">
+          <label>AI 难度</label>
+          <div class="opt-row" data-setting="difficulty">
+            <button class="opt-chip" data-val="normal">普通</button>
+            <button class="opt-chip active" data-val="hard">困难</button>
+            <button class="opt-chip" data-val="nightmare">噩梦</button>
+          </div>
+        </div>
+        <div class="setup-box">
+          <label>操控模式</label>
+          <div class="opt-row" data-setting="controlMode">
+            <button class="opt-chip active" data-val="war3">War3右键</button>
+            <button class="opt-chip" data-val="wasd">WASD走位</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="control-hints" id="control-hints-box">
+        <div><strong>🎮 War3 经典模式：</strong><kbd>右键地面</kbd>（或方向键）移动，<kbd>Q W E R D F 1 2</kbd> 朝鼠标施法，<kbd>左键</kbd> 快速火球。</div>
+        <div><strong>🕹️ WASD 走位模式：</strong><kbd>W A S D</kbd> 移动，<kbd>左键</kbd> 火球 / <kbd>Space</kbd> 闪烁 / <kbd>Q E R F 1 2</kbd> 施放其余法术，零按键冲突！</div>
+        <div><strong>🌋 经典规则：</strong>石台随时间崩塌缩圈，掉入岩浆持续灼烧；按 <kbd>B</kbd> 打开商店购买新法术与神装！</div>
+      </div>
+
+      <button class="start-cta" id="btn-start-game">🔥 踏入熔岩竞技场</button>
+    </div>
+  </div>
+
+  <!-- Shop Modal -->
+  <div class="modal-backdrop" id="modal-shop">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>🛒 术士秘法商店</span>
+        <span style="font-size:15px;">当前金币：<strong id="shop-gold" style="color:var(--gold);">25G</strong></span>
+      </div>
+
+      <div class="shop-tabs">
+        <button class="shop-tab active" data-tab="spells">✨ 法术学习与升级 (8)</button>
+        <button class="shop-tab" data-tab="items">🛡️ 装备锻造 (6)</button>
+      </div>
+
+      <div class="shop-grid" id="shop-grid"></div>
+
+      <div class="shop-footer">
+        <span id="shop-phase-tip" style="font-size:12px;color:var(--text-muted);">回合间整备阶段可自由购买与升级，战斗中也可随时购买。</span>
+        <div style="display:flex;gap:8px;">
+          <button class="hud-btn" id="btn-close-shop">关闭商店 (B)</button>
+          <button class="hud-btn primary" id="btn-shop-ready">⚔️ 立即开战</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scoreboard / Match End Modal -->
+  <div class="modal-backdrop" id="modal-score">
+    <div class="modal-card narrow">
+      <div class="modal-title">
+        <span id="score-modal-title">🏆 竞技场战绩榜</span>
+        <button class="hud-btn" id="btn-close-score">关闭</button>
+      </div>
+      <div id="score-summary" style="font-size:13px;color:#dfd3be;margin-bottom:12px;"></div>
+      <table class="score-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>术士</th>
+            <th>胜场</th>
+            <th>击杀</th>
+            <th>总伤害</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="score-tbody"></tbody>
+      </table>
+      <div id="match-end-actions" style="display:none;gap:10px;justify-content:flex-end;">
+        <button class="hud-btn" id="btn-back-menu">返回主菜单</button>
+        <button class="hud-btn primary" id="btn-rematch">🔥 再来一局</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help Modal -->
+  <div class="modal-backdrop" id="modal-help">
+    <div class="modal-card narrow">
+      <div class="modal-title">
+        <span>📖 术士之战 · 玩法指南</span>
+        <button class="hud-btn" id="btn-close-help">关闭</button>
+      </div>
+      <div style="font-size:13px;line-height:1.75;color:#dfd3be;display:flex;flex-direction:column;gap:8px;">
+        <div><strong>1. 击退与岩浆：</strong>命中敌人会施加物理击退，将其打入岩浆会造成持续灼烧；若敌人在受你攻击后 4 秒内死于岩浆，击杀赏金 (+15G) 归你所有！</div>
+        <div><strong>2. 弹道对拼：</strong>火球、追踪弹、换位锁链在空中相撞会相互抵消爆炸；开启 <strong>反弹护盾 (R)</strong> 可将敌方弹道原路反弹！</div>
+        <div><strong>3. 经典连招：</strong>
+          <ul style="padding-left:18px;margin-top:4px;">
+            <li><strong>跳岩浆换人：</strong>主动跳进岩浆边缘后按 <kbd>D</kbd> 移形换影将安全区的敌人换进岩浆，再按 <kbd>W</kbd> 闪烁回台！</li>
+            <li><strong>黑洞陨石：</strong>先放 <kbd>2</kbd> 黑洞引力聚怪，立刻接 <kbd>F</kbd> 末日陨石一网打尽！</li>
+            <li><strong>斥力防身：</strong>敌人贴脸或火球迎面飞来时，按 <kbd>E</kbd> 斥力冲击可弹开敌方弹道并震飞近身敌人！</li>
+          </ul>
+        </div>
+        <div><strong>4. 操控快捷键：</strong>右键移动 / WASD 移动，左键默认施放火球，<kbd>Q W E R D F 1 2</kbd> 施放对应法术，<kbd>B</kbd> 打开商店，<kbd>Tab</kbd> 查看战绩，<kbd>P</kbd> 暂停。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  /* ========================
+     1. GAME DATA DEFINITIONS
+     ======================== */
+  const SPELLS = [
+    {
+      id: 'fireball', key: 'Q', name: '火球术', icon: '🔥',
+      unlockCost: 0, upgradeBase: 10, maxLvl: 5,
+      desc: '发射炽热火球，造成高额伤害与强力击退，可与敌方弹道对拼抵消。',
+      stats: (lvl) => ({
+        cd: Math.max(1.5, 3.0 - (lvl - 1) * 0.28),
+        dmg: 14 + (lvl - 1) * 4,
+        kb: 390 + (lvl - 1) * 65,
+        speed: 520 + (lvl - 1) * 45,
+        radius: 13 + (lvl - 1) * 1.5,
+        range: 760 + (lvl - 1) * 50
+      })
+    },
+    {
+      id: 'teleport', key: 'W', name: '闪烁', icon: '✨',
+      unlockCost: 0, upgradeBase: 10, maxLvl: 5,
+      desc: '瞬间传送至鼠标位置，摆脱岩浆或躲避致命弹道。',
+      stats: (lvl) => ({
+        cd: Math.max(3.6, 7.2 - (lvl - 1) * 0.8),
+        range: 240 + (lvl - 1) * 40
+      })
+    },
+    {
+      id: 'thrust', key: 'E', name: '斥力冲击', icon: '💥',
+      unlockCost: 12, upgradeBase: 11, maxLvl: 5,
+      desc: '释放环形奥术冲击波，震飞周围敌人并弹开附近敌方弹道！',
+      stats: (lvl) => ({
+        cd: Math.max(3.2, 5.8 - (lvl - 1) * 0.55),
+        dmg: 10 + (lvl - 1) * 3,
+        kb: 470 + (lvl - 1) * 70,
+        radius: 125 + (lvl - 1) * 16
+      })
+    },
+    {
+      id: 'shield', key: 'R', name: '反弹护盾', icon: '🛡️',
+      unlockCost: 15, upgradeBase: 12, maxLvl: 5,
+      desc: '展开反射护盾，反弹所有来袭弹道并免疫击退效果！',
+      stats: (lvl) => ({
+        cd: Math.max(4.5, 8.2 - (lvl - 1) * 0.75),
+        duration: 1.45 + (lvl - 1) * 0.25
+      })
+    },
+    {
+      id: 'swap', key: 'D', name: '移形换影', icon: '🌀',
+      unlockCost: 16, upgradeBase: 12, maxLvl: 5,
+      desc: '发射暗影锁链，命中敌方术士后与目标互换位置（可跳岩浆换人）！',
+      stats: (lvl) => ({
+        cd: Math.max(4.8, 9.0 - (lvl - 1) * 0.9),
+        speed: 620 + (lvl - 1) * 55,
+        range: 640 + (lvl - 1) * 55,
+        radius: 12
+      })
+    },
+    {
+      id: 'meteor', key: 'F', name: '末日陨石', icon: '☄️',
+      unlockCost: 20, upgradeBase: 14, maxLvl: 5,
+      desc: '召唤巨型陨石砸向目标区域（1.0秒预警），造成毁灭范围伤害与超强击退！',
+      stats: (lvl) => ({
+        cd: Math.max(6.2, 10.5 - (lvl - 1) * 0.9),
+        dmg: 24 + (lvl - 1) * 6,
+        kb: 560 + (lvl - 1) * 80,
+        radius: 95 + (lvl - 1) * 12,
+        range: 560 + (lvl - 1) * 40,
+        delay: 0.95
+      })
+    },
+    {
+      id: 'homing', key: '1', name: '追踪魔弹', icon: '🔮',
+      unlockCost: 15, upgradeBase: 12, maxLvl: 5,
+      desc: '发射会拐弯追踪最近敌人的奥术火球，持续施加走位压力。',
+      stats: (lvl) => ({
+        cd: Math.max(3.4, 6.2 - (lvl - 1) * 0.6),
+        dmg: 13 + (lvl - 1) * 3.5,
+        kb: 320 + (lvl - 1) * 55,
+        speed: 330 + (lvl - 1) * 28,
+        turnRate: 2.8 + (lvl - 1) * 0.45,
+        duration: 4.0 + (lvl - 1) * 0.4,
+        radius: 11
+      })
+    },
+    {
+      id: 'gravity', key: '2', name: '黑洞引力', icon: '🕳️',
+      unlockCost: 18, upgradeBase: 13, maxLvl: 5,
+      desc: '在目标点制造重力奇点，将周围敌人与弹道强力拉向中心！',
+      stats: (lvl) => ({
+        cd: Math.max(6.5, 11.0 - (lvl - 1) * 0.95),
+        pull: 360 + (lvl - 1) * 60,
+        radius: 165 + (lvl - 1) * 18,
+        duration: 2.6 + (lvl - 1) * 0.35,
+        range: 520
+      })
+    }
+  ];
+
+  const ITEMS = [
+    {
+      id: 'boots', name: '速度之靴', icon: '👢', baseCost: 12, maxLvl: 4,
+      desc: '提升术士基础移动速度，走位躲火球更灵活。',
+      statText: (lvl) => `移动速度 +${lvl * 14}%`
+    },
+    {
+      id: 'lava_treads', name: '熔岩护靴', icon: '🥾', baseCost: 14, maxLvl: 4,
+      desc: '大幅降低站在岩浆中受到的持续灼烧伤害。',
+      statText: (lvl) => `岩浆减伤 -${lvl * 20}%`
+    },
+    {
+      id: 'staff', name: '秘法法杖', icon: '🪄', baseCost: 16, maxLvl: 4,
+      desc: '增强所有法术的伤害与物理击退力度。',
+      statText: (lvl) => `法术威力 & 击退 +${lvl * 14}%`
+    },
+    {
+      id: 'pendant', name: '生命挂坠', icon: '📿', baseCost: 14, maxLvl: 4,
+      desc: '提升最大生命值上限，并在安全区缓慢恢复生命。',
+      statText: (lvl) => `生命上限 +${lvl * 35}，回血 +${(lvl * 1.2).toFixed(1)}/s`
+    },
+    {
+      id: 'watch', name: '时光怀表', icon: '⏱️', baseCost: 16, maxLvl: 4,
+      desc: '缩短所有法术的冷却时间，连招频率大幅提升。',
+      statText: (lvl) => `冷却缩减 -${lvl * 11}%`
+    },
+    {
+      id: 'aegis', name: '泰坦圣盾', icon: '🔰', baseCost: 16, maxLvl: 4,
+      desc: '提升抗击退韧性，并将造成伤害转化为自身生命。',
+      statText: (lvl) => `抗击退 +${lvl * 16}%，法术吸血 ${lvl * 10}%`
+    }
+  ];
+
+  const AI_PRESETS = [
+    { name: '古尔丹', color: '#8e44ad', accent: '#d291ff' },
+    { name: '凯尔萨斯', color: '#e67e22', accent: '#ffd080' },
+    { name: '克尔苏加德', color: '#2980b9', accent: '#85d6ff' },
+    { name: '玛尔加尼斯', color: '#c0392b', accent: '#ff8a80' },
+    { name: '麦迪文', color: '#16a085', accent: '#64ffda' },
+    { name: '阿克蒙德', color: '#d81b60', accent: '#ff80ab' },
+    { name: '基尔加丹', color: '#f39c12', accent: '#ffe57f' }
+  ];
+
+  /* ========================
+     2. WEB AUDIO SYNTH ENGINE
+     ======================== */
+  class SoundEngine {
+    constructor() {
+      this.ctx = null;
+      this.muted = false;
+    }
+    init() {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) this.ctx = new AudioCtx();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    }
+    play(type) {
+      if (this.muted) return;
+      this.init();
+      if (!this.ctx) return;
+      const now = this.ctx.currentTime;
+      const ctx = this.ctx;
+
+      const osc = (wave, f1, f2, dur, vol = 0.16) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.type = wave;
+        o.frequency.setValueAtTime(f1, now);
+        o.frequency.exponentialRampToValueAtTime(Math.max(20, f2), now + dur);
+        g.gain.setValueAtTime(vol, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now); o.stop(now + dur);
+      };
+
+      const noise = (dur, freq = 800, vol = 0.14) => {
+        const bufSize = Math.floor(ctx.sampleRate * dur);
+        const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const flt = ctx.createBiquadFilter();
+        flt.type = 'lowpass';
+        flt.frequency.setValueAtTime(freq, now);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(vol, now);
+        g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+        src.connect(flt); flt.connect(g); g.connect(ctx.destination);
+        src.start(now);
+      };
+
+      switch (type) {
+        case 'fireball':
+          osc('sawtooth', 320, 110, 0.22, 0.12);
+          noise(0.18, 1200, 0.1);
+          break;
+        case 'hit':
+          osc('triangle', 180, 45, 0.24, 0.22);
+          noise(0.22, 650, 0.18);
+          break;
+        case 'teleport':
+          osc('sine', 420, 1280, 0.18, 0.13);
+          osc('triangle', 840, 1680, 0.14, 0.08);
+          break;
+        case 'thrust':
+          osc('sawtooth', 160, 50, 0.28, 0.18);
+          noise(0.24, 900, 0.15);
+          break;
+        case 'shield':
+          osc('sine', 520, 780, 0.22, 0.12);
+          break;
+        case 'reflect':
+          osc('square', 700, 1400, 0.15, 0.13);
+          break;
+        case 'swap':
+          osc('sine', 640, 220, 0.22, 0.14);
+          osc('sine', 240, 760, 0.25, 0.12);
+          break;
+        case 'meteor_cast':
+          osc('sawtooth', 500, 160, 0.45, 0.09);
+          break;
+        case 'meteor_hit':
+          osc('sawtooth', 120, 28, 0.55, 0.28);
+          noise(0.5, 420, 0.26);
+          break;
+        case 'gravity':
+          osc('sine', 130, 75, 0.4, 0.15);
+          break;
+        case 'buy':
+          osc('sine', 660, 990, 0.12, 0.13);
+          setTimeout(() => { if (!this.muted && this.ctx) osc('sine', 990, 1320, 0.14, 0.1); }, 70);
+          break;
+        case 'kill':
+          osc('triangle', 440, 880, 0.28, 0.16);
+          break;
+        case 'horn':
+          osc('sawtooth', 185, 180, 0.6, 0.12);
+          osc('triangle', 277, 275, 0.6, 0.1);
+          break;
+        case 'lava':
+          noise(0.14, 1500, 0.06);
+          break;
+      }
+    }
+  }
+  const sfx = new SoundEngine();
+
+  /* ========================
+     3. GAME STATE & SETTINGS
+     ======================== */
+  const settings = {
+    rounds: 7,
+    aiCount: 5,
+    difficulty: 'hard',
+    pillars: 1,
+    controlMode: 'war3'
+  };
+
+  const state = {
+    mode: 'menu', // 'menu' | 'prep' | 'combat' | 'round_end' | 'match_end'
+    paused: false,
+    round: 1,
+    phaseTimer: 0,
+    shrinkTimer: 0,
+    shrinkStage: 0,
+    shrinkWarning: 0,
+    arenaBaseRadius: 430,
+    arenaRadius: 430,
+    arenaTargetRadius: 430,
+    cameraX: 0,
+    cameraY: 0,
+    zoom: 1,
+    shake: 0,
+    time: 0,
+    warlocks: [],
+    projectiles: [],
+    meteors: [],
+    gravities: [],
+    particles: [],
+    floatingTexts: [],
+    shockwaves: [],
+    pillars: [],
+    moveMarker: null,
+    shopTab: 'spells',
+    mouseScreenX: 0,
+    mouseScreenY: 0,
+    mouseWorldX: 0,
+    mouseWorldY: 0,
+    keys: {},
+    touchVec: { x: 0, y: 0, active: false },
+    rafId: null,
+    lastTs: 0,
+    lavaSfxCd: 0
+  };
+
+  /* ========================
+     4. DOM REFERENCES
+     ======================== */
+  const canvas = document.getElementById('arena-canvas');
+  const ctx = canvas.getContext('2d');
+  const hudRound = document.getElementById('hud-round');
+  const hudPhaseLabel = document.getElementById('hud-phase-label');
+  const hudTimer = document.getElementById('hud-timer');
+  const hudAlive = document.getElementById('hud-alive');
+  const hudGold = document.getElementById('hud-gold');
+  const hudKills = document.getElementById('hud-kills');
+  const heroHpFill = document.getElementById('hero-hp-fill');
+  const heroHpText = document.getElementById('hero-hp-text');
+  const heroLavaWarn = document.getElementById('hero-lava-warn');
+  const heroItemsMini = document.getElementById('hero-items-mini');
+  const spellBar = document.getElementById('spell-bar');
+  const killFeed = document.getElementById('kill-feed');
+  const centerBanner = document.getElementById('center-banner');
+  const centerBannerTitle = document.getElementById('center-banner-title');
+  const centerBannerSub = document.getElementById('center-banner-sub');
+  const toastEl = document.getElementById('toast');
+
+  const modalStart = document.getElementById('modal-start');
+  const modalShop = document.getElementById('modal-shop');
+  const modalScore = document.getElementById('modal-score');
+  const modalHelp = document.getElementById('modal-help');
+  const shopGoldEl = document.getElementById('shop-gold');
+  const shopGrid = document.getElementById('shop-grid');
+  const btnReady = document.getElementById('btn-ready');
+  const btnShopReady = document.getElementById('btn-shop-ready');
+  const btnSound = document.getElementById('btn-sound');
+  const btnPause = document.getElementById('btn-pause');
+
+  let bannerTimeout = null;
+  let toastTimeout = null;
+
+  function showBanner(title, sub = '', duration = 2600) {
+    centerBannerTitle.textContent = title;
+    centerBannerSub.textContent = sub;
+    centerBannerSub.style.display = sub ? 'inline-block' : 'none';
+    centerBanner.classList.add('visible');
+    if (bannerTimeout) clearTimeout(bannerTimeout);
+    if (duration > 0) {
+      bannerTimeout = setTimeout(() => centerBanner.classList.remove('visible'), duration);
+    }
+  }
+
+  function showToast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toastEl.classList.remove('show'), 2100);
+  }
+
+  function addKillFeed(text, color = '#ff5722') {
+    const el = document.createElement('div');
+    el.className = 'kill-item';
+    el.style.borderLeftColor = color;
+    el.textContent = text;
+    killFeed.prepend(el);
+    while (killFeed.children.length > 5) killFeed.lastChild.remove();
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 4600);
+  }
+
+  /* ========================
+     5. WARLOCK FACTORY & STATS
+     ======================== */
+  function createWarlock(id, name, isPlayer, color, accent) {
+    const spellLevels = {};
+    const cooldowns = {};
+    SPELLS.forEach(s => {
+      spellLevels[s.id] = (s.id === 'fireball' || s.id === 'teleport') ? 1 : 0;
+      cooldowns[s.id] = 0;
+    });
+    const items = {};
+    ITEMS.forEach(it => { items[it.id] = 0; });
+
+    return {
+      id, name, isPlayer, color, accent,
+      x: 0, y: 0, vx: 0, vy: 0,
+      radius: 19,
+      facing: 0,
+      targetX: null, targetY: null,
+      hp: 120, maxHp: 120,
+      alive: true,
+      inLava: false,
+      shieldTimer: 0,
+      castAnim: 0,
+      hitFlash: 0,
+      lastHitBy: null,
+      lastHitTime: 0,
+      gold: 25,
+      kills: 0,
+      roundKills: 0,
+      wins: 0,
+      totalDamage: 0,
+      roundDamage: 0,
+      spellLevels,
+      cooldowns,
+      items,
+      aiThinkTimer: 0,
+      aiMoveAngle: Math.random() * Math.PI * 2,
+      aiStrafeDir: Math.random() < 0.5 ? 1 : -1
+    };
+  }
+
+  function getPlayer() {
+    return state.warlocks.find(w => w.isPlayer);
+  }
+
+  function getWarlockMoveSpeed(w) {
+    return 185 * (1 + (w.items.boots || 0) * 0.14);
+  }
+
+  function getWarlockMaxHp(w) {
+    return 120 + (w.items.pendant || 0) * 35;
+  }
+
+  function getWarlockPowerMult(w) {
+    return 1 + (w.items.staff || 0) * 0.14;
+  }
+
+  function getWarlockCdMult(w) {
+    return Math.max(0.45, 1 - (w.items.watch || 0) * 0.11);
+  }
+
+  function getWarlockKbResist(w) {
+    return Math.max(0.32, 1 - (w.items.aegis || 0) * 0.16);
+  }
+
+  function getWarlockLavaMult(w) {
+    return Math.max(0.2, 1 - (w.items.lava_treads || 0) * 0.20);
+  }
+
+  function getSpellCost(spell, curLvl) {
+    if (curLvl === 0) return spell.unlockCost;
+    return spell.upgradeBase + (curLvl - 1) * 5;
+  }
+
+  function getItemCost(item, curLvl) {
+    return item.baseCost + curLvl * 6;
+  }
+
+  /* ========================
+     6. MATCH & ROUND LIFECYCLE
+     ======================== */
+  function startNewMatch() {
+    sfx.init();
+    modalStart.classList.remove('open');
+    modalScore.classList.remove('open');
+    modalShop.classList.remove('open');
+    state.paused = false;
+    btnPause.textContent = '⏸ 暂停';
+    state.round = 1;
+    state.warlocks = [];
+
+    // Create Player
+    state.warlocks.push(createWarlock('player', '大术士 (你)', true, '#27ae60', '#a7ffeb'));
+
+    // Create AI opponents
+    for (let i = 0; i < settings.aiCount; i++) {
+      const p = AI_PRESETS[i % AI_PRESETS.length];
+      state.warlocks.push(createWarlock('ai_' + i, p.name, false, p.color, p.accent));
+    }
+
+    killFeed.innerHTML = '';
+    setupRound(true);
+  }
+
+  function setupRound(isFirst = false) {
+    state.mode = 'prep';
+    state.phaseTimer = isFirst ? 12 : 15;
+    state.arenaBaseRadius = Math.min(470, 360 + state.warlocks.length * 16);
+    state.arenaRadius = state.arenaBaseRadius;
+    state.arenaTargetRadius = state.arenaBaseRadius;
+    state.shrinkStage = 0;
+    state.shrinkTimer = 11;
+    state.shrinkWarning = 0;
+    state.projectiles = [];
+    state.meteors = [];
+    state.gravities = [];
+    state.particles = [];
+    state.floatingTexts = [];
+    state.shockwaves = [];
+    state.moveMarker = null;
+
+    // Generate pillars if enabled
+    state.pillars = [];
+    if (settings.pillars) {
+      const count = 4;
+      const dist = state.arenaBaseRadius * 0.52;
+      const offset = (state.round % 2) * (Math.PI / 4);
+      for (let i = 0; i < count; i++) {
+        const ang = offset + (i / count) * Math.PI * 2;
+        state.pillars.push({
+          x: Math.cos(ang) * dist,
+          y: Math.sin(ang) * dist,
+          radius: 26,
+          hp: 90,
+          maxHp: 90
+        });
+      }
+    }
+
+    // Spawn warlocks in a circle
+    const n = state.warlocks.length;
+    const spawnR = state.arenaBaseRadius * 0.76;
+    state.warlocks.forEach((w, idx) => {
+      const ang = (idx / n) * Math.PI * 2 - Math.PI / 2;
+      w.x = Math.cos(ang) * spawnR;
+      w.y = Math.sin(ang) * spawnR;
+      w.vx = 0;
+      w.vy = 0;
+      w.targetX = null;
+      w.targetY = null;
+      w.facing = ang + Math.PI;
+      w.maxHp = getWarlockMaxHp(w);
+      w.hp = w.maxHp;
+      w.alive = true;
+      w.inLava = false;
+      w.shieldTimer = 0;
+      w.castAnim = 0;
+      w.hitFlash = 0;
+      w.lastHitBy = null;
+      w.lastHitTime = 0;
+      w.roundKills = 0;
+      w.roundDamage = 0;
+      SPELLS.forEach(s => { w.cooldowns[s.id] = 0; });
+
+      if (!w.isPlayer) {
+        aiBuyUpgrades(w);
+      }
+    });
+
+    btnReady.style.display = 'inline-flex';
+    btnShopReady.style.display = 'inline-flex';
+    renderSpellBar();
+    renderMiniItems();
+    updateHud();
+    showBanner(`第 ${state.round} 回合 · 整备阶段`, '按 B 打开商店购买技能与装备，或点击「立即开战」', 3000);
+  }
+
+  function startCombatPhase() {
+    if (state.mode !== 'prep') return;
+    state.mode = 'combat';
+    modalShop.classList.remove('open');
+    btnReady.style.display = 'none';
+    btnShopReady.style.display = 'none';
+    state.shrinkTimer = 10;
+    sfx.play('horn');
+    showBanner(`第 ${state.round} 回合 · 开战！`, '将所有对手击入熔岩！', 2200);
+  }
+
+  function finishRound(winner) {
+    state.mode = 'round_end';
+    state.phaseTimer = 4.2;
+
+    if (winner) {
+      winner.wins += 1;
+      winner.gold += 22;
+      addKillFeed(`🏆 ${winner.name} 赢得第 ${state.round} 回合 (+22G)`, '#f5c542');
+    }
+
+    // Grant round base income & damage bonus to all warlocks
+    state.warlocks.forEach(w => {
+      const dmgBonus = Math.min(18, Math.floor(w.roundDamage / 12));
+      const baseGold = 18;
+      w.gold += baseGold + dmgBonus;
+      if (w.isPlayer) {
+        const winText = winner && winner.isPlayer ? '你赢得了本回合！' : (winner ? `${winner.name} 赢得本回合` : '平局！');
+        showBanner(winText, `回合收益 +${baseGold}G · 伤害奖励 +${dmgBonus}G${winner && winner.isPlayer ? ' · 胜者 +22G' : ''}`, 3800);
+      }
+    });
+    sfx.play('horn');
+  }
+
+  function finishMatch() {
+    state.mode = 'match_end';
+    modalShop.classList.remove('open');
+    openScoreboard(true);
+  }
+
+  /* ========================
+     7. AI SHOPPING & BRAIN
+     ======================== */
+  function aiBuyUpgrades(w) {
+    let safety = 0;
+    while (w.gold >= 10 && safety++ < 10) {
+      const candidates = [];
+      SPELLS.forEach(s => {
+        const lvl = w.spellLevels[s.id];
+        if (lvl < s.maxLvl) {
+          const cost = getSpellCost(s, lvl);
+          if (w.gold >= cost) {
+            let weight = lvl === 0 ? 3.2 : 1.4;
+            if (s.id === 'fireball' || s.id === 'teleport') weight += 1.5;
+            if (s.id === 'shield' || s.id === 'thrust') weight += 1.0;
+            candidates.push({ type: 'spell', obj: s, cost, weight });
+          }
+        }
+      });
+      ITEMS.forEach(it => {
+        const lvl = w.items[it.id];
+        if (lvl < it.maxLvl) {
+          const cost = getItemCost(it, lvl);
+          if (w.gold >= cost) {
+            candidates.push({ type: 'item', obj: it, cost, weight: 1.5 });
+          }
+        }
+      });
+      if (!candidates.length) break;
+      const totalW = candidates.reduce((a, b) => a + b.weight, 0);
+      let r = Math.random() * totalW;
+      let pick = candidates[0];
+      for (const c of candidates) {
+        r -= c.weight;
+        if (r <= 0) { pick = c; break; }
+      }
+      w.gold -= pick.cost;
+      if (pick.type === 'spell') {
+        w.spellLevels[pick.obj.id]++;
+      } else {
+        w.items[pick.obj.id]++;
+        w.maxHp = getWarlockMaxHp(w);
+        w.hp = w.maxHp;
+      }
+    }
+  }
+
+  function updateAI(w, dt) {
+    const diff = settings.difficulty;
+    const reactRate = diff === 'nightmare' ? 0.14 : (diff === 'hard' ? 0.24 : 0.42);
+    const aimNoise = diff === 'nightmare' ? 0.06 : (diff === 'hard' ? 0.15 : 0.30);
+
+    w.aiThinkTimer -= dt;
+    const distFromCenter = Math.hypot(w.x, w.y);
+    const safeLimit = Math.max(25, state.arenaRadius - 36);
+
+    // Emergency Teleport back to stone if in lava
+    if (w.inLava && w.spellLevels.teleport > 0 && w.cooldowns.teleport <= 0) {
+      const angToCenter = Math.atan2(-w.y, -w.x);
+      const tx = w.x + Math.cos(angToCenter) * Math.min(distFromCenter, 240);
+      const ty = w.y + Math.sin(angToCenter) * Math.min(distFromCenter, 240);
+      castSpell(w, 'teleport', tx, ty);
+      return;
+    }
+
+    // Threat detection: incoming enemy projectiles
+    let incoming = null;
+    let minThreatDist = 175;
+    for (const p of state.projectiles) {
+      if (p.ownerId === w.id) continue;
+      const dx = w.x - p.x;
+      const dy = w.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d < minThreatDist) {
+        const dot = (dx * p.vx + dy * p.vy) / (Math.hypot(p.vx, p.vy) * d + 0.001);
+        if (dot > 0.65) {
+          minThreatDist = d;
+          incoming = p;
+        }
+      }
+    }
+
+    if (incoming && minThreatDist < 105) {
+      if (w.spellLevels.shield > 0 && w.cooldowns.shield <= 0 && Math.random() < (diff === 'normal' ? 0.35 : 0.75)) {
+        castSpell(w, 'shield', w.x, w.y);
+      } else if (w.spellLevels.thrust > 0 && w.cooldowns.thrust <= 0 && minThreatDist < 95 && Math.random() < 0.6) {
+        castSpell(w, 'thrust', w.x, w.y);
+      }
+    }
+
+    // Find nearest living enemy
+    let target = null;
+    let bestD = Infinity;
+    for (const o of state.warlocks) {
+      if (!o.alive || o.id === w.id) continue;
+      const d = Math.hypot(o.x - w.x, o.y - w.y);
+      if (d < bestD) { bestD = d; target = o; }
+    }
+
+    // Movement Steering
+    let desiredVx = 0, desiredVy = 0;
+    const speed = getWarlockMoveSpeed(w);
+
+    if (distFromCenter > safeLimit) {
+      // Rush back to center
+      const ang = Math.atan2(-w.y, -w.x);
+      desiredVx = Math.cos(ang) * speed;
+      desiredVy = Math.sin(ang) * speed;
+    } else if (incoming) {
+      // Sidestep perpendicular to projectile
+      const perpAngle = Math.atan2(incoming.vy, incoming.vx) + (Math.PI / 2) * w.aiStrafeDir;
+      desiredVx = Math.cos(perpAngle) * speed;
+      desiredVy = Math.sin(perpAngle) * speed;
+    } else if (target) {
+      const angToTarget = Math.atan2(target.y - w.y, target.x - w.x);
+      let moveAng = angToTarget + (Math.PI / 2) * w.aiStrafeDir;
+      if (bestD > 300) moveAng = angToTarget + 0.45 * w.aiStrafeDir;
+      else if (bestD < 130) moveAng = angToTarget + Math.PI;
+      desiredVx = Math.cos(moveAng) * speed;
+      desiredVy = Math.sin(moveAng) * speed;
+    }
+
+    // Avoid meteor zones
+    for (const m of state.meteors) {
+      const dm = Math.hypot(w.x - m.x, w.y - m.y);
+      if (dm < m.radius + 26) {
+        const away = Math.atan2(w.y - m.y, w.x - m.x);
+        desiredVx = Math.cos(away) * speed;
+        desiredVy = Math.sin(away) * speed;
+      }
+    }
+
+    // Smoothly blend AI movement into velocity (preserving knockback!)
+    const accel = 7.2 * dt;
+    w.vx += (desiredVx - w.vx) * Math.min(1, accel);
+    w.vy += (desiredVy - w.vy) * Math.min(1, accel);
+    if (Math.hypot(desiredVx, desiredVy) > 10) {
+      w.facing = Math.atan2(desiredVy, desiredVx);
+    }
+
+    if (w.aiThinkTimer > 0 || !target) return;
+    w.aiThinkTimer = reactRate + Math.random() * 0.25;
+    if (Math.random() < 0.22) w.aiStrafeDir *= -1;
+
+    // Predictive lead aiming
+    const leadT = Math.min(0.65, bestD / 550);
+    const aimX = target.x + target.vx * leadT + (Math.random() - 0.5) * 60 * aimNoise * 3;
+    const aimY = target.y + target.vy * leadT + (Math.random() - 0.5) * 60 * aimNoise * 3;
+
+    // Cast offensive spells by priority
+    if (w.spellLevels.thrust > 0 && w.cooldowns.thrust <= 0 && bestD < 115) {
+      castSpell(w, 'thrust', aimX, aimY);
+    } else if (w.spellLevels.meteor > 0 && w.cooldowns.meteor <= 0 && bestD < 520 && Math.random() < 0.45) {
+      castSpell(w, 'meteor', aimX, aimY);
+    } else if (w.spellLevels.gravity > 0 && w.cooldowns.gravity <= 0 && bestD < 480 && Math.random() < 0.35) {
+      castSpell(w, 'gravity', target.x, target.y);
+    } else if (w.spellLevels.swap > 0 && w.cooldowns.swap <= 0 && (w.inLava || Math.hypot(target.x, target.y) < state.arenaRadius * 0.5) && bestD < 560 && Math.random() < 0.35) {
+      castSpell(w, 'swap', aimX, aimY);
+    } else if (w.spellLevels.homing > 0 && w.cooldowns.homing <= 0 && Math.random() < 0.45) {
+      castSpell(w, 'homing', aimX, aimY);
+    } else if (w.spellLevels.fireball > 0 && w.cooldowns.fireball <= 0) {
+      castSpell(w, 'fireball', aimX, aimY);
+    }
+  }
+
+  /* ========================
+     8. SPELL CASTING ENGINE
+     ======================== */
+  function castSpell(w, spellId, tx, ty) {
+    if (!w || !w.alive || state.mode !== 'combat') return false;
+    const lvl = w.spellLevels[spellId] || 0;
+    if (lvl <= 0) {
+      if (w.isPlayer) showToast('尚未学习该法术，按 B 打开商店购买');
+      return false;
+    }
+    if (w.cooldowns[spellId] > 0) return false;
+
+    const spell = SPELLS.find(s => s.id === spellId);
+    const st = spell.stats(lvl);
+    const powerMult = getWarlockPowerMult(w);
+    const cdMult = getWarlockCdMult(w);
+    const ang = Math.atan2(ty - w.y, tx - w.x);
+    w.facing = ang;
+    w.castAnim = 0.22;
+    w.cooldowns[spellId] = st.cd * cdMult;
+
+    if (spellId === 'fireball') {
+      state.projectiles.push({
+        type: 'fireball',
+        ownerId: w.id,
+        color: '#ff6d00',
+        core: '#fff176',
+        x: w.x + Math.cos(ang) * (w.radius + 10),
+        y: w.y + Math.sin(ang) * (w.radius + 10),
+        vx: Math.cos(ang) * st.speed,
+        vy: Math.sin(ang) * st.speed,
+        radius: st.radius,
+        dmg: st.dmg * powerMult,
+        kb: st.kb * powerMult,
+        distLeft: st.range
+      });
+      sfx.play('fireball');
+      spawnParticles(w.x + Math.cos(ang) * 20, w.y + Math.sin(ang) * 20, '#ff9100', 8, 120);
+    }
+    else if (spellId === 'teleport') {
+      const dist = Math.min(st.range, Math.hypot(tx - w.x, ty - w.y));
+      spawnParticles(w.x, w.y, '#b388ff', 16, 150);
+      w.x += Math.cos(ang) * dist;
+      w.y += Math.sin(ang) * dist;
+      w.vx *= 0.2;
+      w.vy *= 0.2;
+      w.targetX = null;
+      w.targetY = null;
+      spawnParticles(w.x, w.y, '#80d8ff', 20, 180);
+      state.shockwaves.push({ x: w.x, y: w.y, r: 8, maxR: 48, color: '#b388ff', alpha: 0.9 });
+      sfx.play('teleport');
+    }
+    else if (spellId === 'thrust') {
+      state.shockwaves.push({ x: w.x, y: w.y, r: 12, maxR: st.radius, color: '#40c4ff', alpha: 0.95 });
+      spawnParticles(w.x, w.y, '#40c4ff', 22, 240);
+      sfx.play('thrust');
+      // Push enemies
+      for (const o of state.warlocks) {
+        if (!o.alive || o.id === w.id) continue;
+        const dx = o.x - w.x, dy = o.y - w.y;
+        const d = Math.hypot(dx, dy);
+        if (d < st.radius + o.radius) {
+          const pushAng = Math.atan2(dy, dx);
+          applyDamageAndKnockback(o, w, st.dmg * powerMult, Math.cos(pushAng) * st.kb * powerMult, Math.sin(pushAng) * st.kb * powerMult);
+        }
+      }
+      // Deflect nearby enemy projectiles
+      for (const p of state.projectiles) {
+        if (p.ownerId === w.id) continue;
+        const dx = p.x - w.x, dy = p.y - w.y;
+        const d = Math.hypot(dx, dy);
+        if (d < st.radius + p.radius + 10) {
+          const sp = Math.hypot(p.vx, p.vy);
+          const away = Math.atan2(dy, dx);
+          p.vx = Math.cos(away) * sp * 1.15;
+          p.vy = Math.sin(away) * sp * 1.15;
+          p.ownerId = w.id;
+          addFloatingText(p.x, p.y - 10, '弹开!', '#80d8ff');
+        }
+      }
+    }
+    else if (spellId === 'shield') {
+      w.shieldTimer = st.duration;
+      spawnParticles(w.x, w.y, '#ffd740', 14, 130);
+      sfx.play('shield');
+    }
+    else if (spellId === 'swap') {
+      state.projectiles.push({
+        type: 'swap',
+        ownerId: w.id,
+        color: '#e040fb',
+        core: '#ffffff',
+        x: w.x + Math.cos(ang) * (w.radius + 10),
+        y: w.y + Math.sin(ang) * (w.radius + 10),
+        vx: Math.cos(ang) * st.speed,
+        vy: Math.sin(ang) * st.speed,
+        radius: st.radius,
+        dmg: 4 * powerMult,
+        kb: 0,
+        distLeft: st.range
+      });
+      sfx.play('swap');
+    }
+    else if (spellId === 'meteor') {
+      const dist = Math.min(st.range, Math.hypot(tx - w.x, ty - w.y));
+      const mx = w.x + Math.cos(ang) * dist;
+      const my = w.y + Math.sin(ang) * dist;
+      state.meteors.push({
+        ownerId: w.id,
+        x: mx, y: my,
+        radius: st.radius,
+        dmg: st.dmg * powerMult,
+        kb: st.kb * powerMult,
+        timer: st.delay,
+        maxTimer: st.delay
+      });
+      sfx.play('meteor_cast');
+    }
+    else if (spellId === 'homing') {
+      state.projectiles.push({
+        type: 'homing',
+        ownerId: w.id,
+        color: '#ab47bc',
+        core: '#ffe082',
+        x: w.x + Math.cos(ang) * (w.radius + 10),
+        y: w.y + Math.sin(ang) * (w.radius + 10),
+        vx: Math.cos(ang) * st.speed,
+        vy: Math.sin(ang) * st.speed,
+        speed: st.speed,
+        turnRate: st.turnRate,
+        radius: st.radius,
+        dmg: st.dmg * powerMult,
+        kb: st.kb * powerMult,
+        distLeft: 1800,
+        life: st.duration
+      });
+      sfx.play('fireball');
+    }
+    else if (spellId === 'gravity') {
+      const dist = Math.min(st.range, Math.hypot(tx - w.x, ty - w.y));
+      const gx = w.x + Math.cos(ang) * dist;
+      const gy = w.y + Math.sin(ang) * dist;
+      state.gravities.push({
+        ownerId: w.id,
+        x: gx, y: gy,
+        radius: st.radius,
+        pull: st.pull * powerMult,
+        timer: st.duration,
+        maxTimer: st.duration
+      });
+      sfx.play('gravity');
+    }
+    return true;
+  }
+
+  function applyDamageAndKnockback(victim, attacker, dmg, kbx, kby, isLava = false) {
+    if (!victim.alive) return;
+    if (!isLava && victim.shieldTimer > 0) {
+      addFloatingText(victim.x, victim.y - 24, '免疫!', '#ffd740');
+      return;
+    }
+
+    victim.hp -= dmg;
+    victim.hitFlash = 0.16;
+
+    if (!isLava && attacker && attacker.id !== victim.id) {
+      victim.lastHitBy = attacker.id;
+      victim.lastHitTime = state.time;
+      attacker.totalDamage += dmg;
+      attacker.roundDamage += dmg;
+      // Lifesteal from Aegis
+      const ls = (attacker.items.aegis || 0) * 0.10;
+      if (ls > 0 && attacker.alive) {
+        attacker.hp = Math.min(attacker.maxHp, attacker.hp + dmg * ls);
+      }
+    }
+
+    if (kbx !== 0 || kby !== 0) {
+      const resist = getWarlockKbResist(victim);
+      victim.vx += kbx * resist;
+      victim.vy += kby * resist;
+      victim.targetX = null;
+      victim.targetY = null;
+    }
+
+    if (dmg >= 2) {
+      addFloatingText(
+        victim.x + (Math.random() - 0.5) * 16,
+        victim.y - 22,
+        `-${Math.round(dmg)}`,
+        isLava ? '#ff5252' : '#ffd54f'
+      );
+    }
+
+    if (victim.hp <= 0) {
+      victim.hp = 0;
+      victim.alive = false;
+      spawnParticles(victim.x, victim.y, victim.color, 34, 240);
+      spawnParticles(victim.x, victim.y, '#ff6d00', 22, 180);
+      state.shockwaves.push({ x: victim.x, y: victim.y, r: 10, maxR: 70, color: '#ff5722', alpha: 0.9 });
+      state.shake = Math.max(state.shake, 9);
+      sfx.play('kill');
+
+      // Determine killer (direct or lava credit within 4.5s)
+      let killer = null;
+      if (attacker && attacker.id !== victim.id) {
+        killer = attacker;
+      } else if (victim.lastHitBy && (state.time - victim.lastHitTime) <= 4.5) {
+        killer = state.warlocks.find(w => w.id === victim.lastHitBy);
+      }
+
+      if (killer) {
+        killer.kills++;
+        killer.roundKills++;
+        killer.gold += 15;
+        addKillFeed(`💀 ${killer.name} 击杀了 ${victim.name} (+15G)`, killer.isPlayer ? '#69f0ae' : '#ff7043');
+        if (killer.isPlayer) addFloatingText(killer.x, killer.y - 34, '击杀 +15G!', '#69f0ae');
+      } else {
+        addKillFeed(`🌋 ${victim.name} 葬身于熔岩之中`, '#ff5252');
+      }
+    }
+  }
+
+  function spawnParticles(x, y, color, count, speed) {
+    for (let i = 0; i < count; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const sp = (0.25 + Math.random() * 0.75) * speed;
+      state.particles.push({
+        x, y,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp,
+        r: 2 + Math.random() * 3.8,
+        color,
+        life: 0.3 + Math.random() * 0.45,
+        maxLife: 0.75
+      });
+    }
+  }
+
+  function addFloatingText(x, y, text, color) {
+    state.floatingTexts.push({ x, y, text, color, life: 0.85, maxLife: 0.85 });
+  }
+
+  /* ========================
+     9. SIMULATION STEP (UPDATE)
+     ======================== */
+  function update(dt) {
+    if (state.paused || state.mode === 'menu' || state.mode === 'match_end') return;
+    state.time += dt;
+    if (state.shake > 0) state.shake = Math.max(0, state.shake - dt * 28);
+    if (state.lavaSfxCd > 0) state.lavaSfxCd -= dt;
+
+    // Phase timers
+    if (state.mode === 'prep') {
+      state.phaseTimer -= dt;
+      if (state.phaseTimer <= 0) startCombatPhase();
+    } else if (state.mode === 'round_end') {
+      state.phaseTimer -= dt;
+      if (state.phaseTimer <= 0) {
+        if (state.round >= settings.rounds) {
+          finishMatch();
+          return;
+        } else {
+          state.round++;
+          setupRound(false);
+          return;
+        }
+      }
+    }
+
+    // Arena shrinking during combat
+    if (state.mode === 'combat') {
+      state.shrinkTimer -= dt;
+      if (state.shrinkTimer <= 2.5 && state.shrinkTimer > 0 && state.arenaTargetRadius > 75) {
+        state.shrinkWarning = 1;
+      } else {
+        state.shrinkWarning = 0;
+      }
+      if (state.shrinkTimer <= 0 && state.arenaTargetRadius > 75) {
+        state.shrinkStage++;
+        state.arenaTargetRadius = Math.max(70, state.arenaTargetRadius - 58);
+        state.shrinkTimer = 9.5;
+        state.shake = Math.max(state.shake, 7);
+        showBanner('⚠️ 竞技场外环崩塌！', '安全区正在缩小', 1700);
+        // Crumble debris particles around rim
+        for (let i = 0; i < 36; i++) {
+          const a = (i / 36) * Math.PI * 2;
+          spawnParticles(Math.cos(a) * state.arenaRadius, Math.sin(a) * state.arenaRadius, '#ff7043', 2, 90);
+        }
+      }
+      if (state.arenaRadius > state.arenaTargetRadius) {
+        state.arenaRadius = Math.max(state.arenaTargetRadius, state.arenaRadius - dt * 42);
+      }
+    }
+
+    // Update Warlocks
+    const player = getPlayer();
+    for (const w of state.warlocks) {
+      if (!w.alive) continue;
+
+      // Cooldowns & buffs
+      SPELLS.forEach(s => {
+        if (w.cooldowns[s.id] > 0) w.cooldowns[s.id] = Math.max(0, w.cooldowns[s.id] - dt);
+      });
+      if (w.shieldTimer > 0) w.shieldTimer = Math.max(0, w.shieldTimer - dt);
+      if (w.castAnim > 0) w.castAnim = Math.max(0, w.castAnim - dt);
+      if (w.hitFlash > 0) w.hitFlash = Math.max(0, w.hitFlash - dt);
+
+      // Movement
+      if (w.isPlayer) {
+        updatePlayerMovement(w, dt);
+      } else if (state.mode === 'combat') {
+        updateAI(w, dt);
+      } else {
+        w.vx *= 0.85;
+        w.vy *= 0.85;
+      }
+
+      // Apply velocity & ground friction
+      w.x += w.vx * dt;
+      w.y += w.vy * dt;
+      const friction = Math.pow(0.06, dt); // smooth knockback glide
+      w.vx *= friction;
+      w.vy *= friction;
+
+      // World boundary clamp (outer lava wall)
+      const maxWorldR = state.arenaBaseRadius + 240;
+      const distC = Math.hypot(w.x, w.y);
+      if (distC > maxWorldR) {
+        w.x = (w.x / distC) * maxWorldR;
+        w.y = (w.y / distC) * maxWorldR;
+      }
+
+      // Pillar collisions
+      for (const pl of state.pillars) {
+        if (pl.hp <= 0) continue;
+        const dx = w.x - pl.x, dy = w.y - pl.y;
+        const d = Math.hypot(dx, dy);
+        const minD = w.radius + pl.radius;
+        if (d < minD && d > 0.01) {
+          const nx = dx / d, ny = dy / d;
+          w.x = pl.x + nx * minD;
+          w.y = pl.y + ny * minD;
+        }
+      }
+
+      // Warlock-vs-Warlock soft collision
+      for (const o of state.warlocks) {
+        if (!o.alive || o.id <= w.id) continue;
+        const dx = o.x - w.x, dy = o.y - w.y;
+        const d = Math.hypot(dx, dy);
+        const minD = w.radius + o.radius;
+        if (d < minD && d > 0.01) {
+          const nx = dx / d, ny = dy / d;
+          const overlap = (minD - d) * 0.5;
+          w.x -= nx * overlap; w.y -= ny * overlap;
+          o.x += nx * overlap; o.y += ny * overlap;
+        }
+      }
+
+      // Lava check & HP regen
+      w.inLava = Math.hypot(w.x, w.y) > state.arenaRadius - 4;
+      if (state.mode === 'combat') {
+        if (w.inLava) {
+          const lavaDps = (16 + state.shrinkStage * 2.5) * getWarlockLavaMult(w);
+          applyDamageAndKnockback(w, null, lavaDps * dt, 0, 0, true);
+          if (Math.random() < 0.35) spawnParticles(w.x, w.y, '#ff5722', 1, 55);
+          if (w.isPlayer && state.lavaSfxCd <= 0) {
+            sfx.play('lava');
+            state.lavaSfxCd = 0.45;
+          }
+        } else if ((w.items.pendant || 0) > 0) {
+          w.hp = Math.min(w.maxHp, w.hp + w.items.pendant * 1.2 * dt);
+        }
+      }
+    }
+
+    // Update Gravity wells
+    for (let i = state.gravities.length - 1; i >= 0; i--) {
+      const g = state.gravities[i];
+      g.timer -= dt;
+      if (g.timer <= 0) { state.gravities.splice(i, 1); continue; }
+      for (const w of state.warlocks) {
+        if (!w.alive || w.id === g.ownerId || w.shieldTimer > 0) continue;
+        const dx = g.x - w.x, dy = g.y - w.y;
+        const d = Math.hypot(dx, dy);
+        if (d < g.radius && d > 8) {
+          const strength = (1 - d / g.radius) * g.pull * dt;
+          w.vx += (dx / d) * strength;
+          w.vy += (dy / d) * strength;
+        }
+      }
+      for (const p of state.projectiles) {
+        const dx = g.x - p.x, dy = g.y - p.y;
+        const d = Math.hypot(dx, dy);
+        if (d < g.radius && d > 10) {
+          p.vx += (dx / d) * g.pull * 0.7 * dt;
+          p.vy += (dy / d) * g.pull * 0.7 * dt;
+        }
+      }
+    }
+
+    // Update Meteors
+    for (let i = state.meteors.length - 1; i >= 0; i--) {
+      const m = state.meteors[i];
+      m.timer -= dt;
+      if (m.timer <= 0) {
+        const owner = state.warlocks.find(w => w.id === m.ownerId);
+        state.shockwaves.push({ x: m.x, y: m.y, r: 10, maxR: m.radius * 1.15, color: '#ff6d00', alpha: 1 });
+        spawnParticles(m.x, m.y, '#ff3d00', 38, 290);
+        spawnParticles(m.x, m.y, '#ffd740', 22, 200);
+        state.shake = Math.max(state.shake, 14);
+        sfx.play('meteor_hit');
+
+        for (const w of state.warlocks) {
+          if (!w.alive) continue;
+          const dx = w.x - m.x, dy = w.y - m.y;
+          const d = Math.hypot(dx, dy);
+          if (d < m.radius + w.radius) {
+            const falloff = Math.max(0.45, 1 - d / (m.radius + w.radius));
+            const ang = Math.atan2(dy, dx);
+            const selfMult = (w.id === m.ownerId) ? 0.4 : 1;
+            applyDamageAndKnockback(
+              w, owner,
+              m.dmg * falloff * selfMult,
+              Math.cos(ang) * m.kb * falloff,
+              Math.sin(ang) * m.kb * falloff
+            );
+          }
+        }
+        // Damage pillars
+        for (const pl of state.pillars) {
+          if (pl.hp > 0 && Math.hypot(pl.x - m.x, pl.y - m.y) < m.radius + pl.radius) {
+            pl.hp -= 45;
+          }
+        }
+        state.meteors.splice(i, 1);
+      }
+    }
+
+    // Update Projectiles
+    for (let i = state.projectiles.length - 1; i >= 0; i--) {
+      const p = state.projectiles[i];
+      if (p.type === 'homing') {
+        p.life -= dt;
+        if (p.life <= 0) { state.projectiles.splice(i, 1); continue; }
+        // Steer toward nearest enemy
+        let best = null, bd = Infinity;
+        for (const o of state.warlocks) {
+          if (!o.alive || o.id === p.ownerId) continue;
+          const d = Math.hypot(o.x - p.x, o.y - p.y);
+          if (d < bd) { bd = d; best = o; }
+        }
+        if (best) {
+          const curAng = Math.atan2(p.vy, p.vx);
+          const desAng = Math.atan2(best.y - p.y, best.x - p.x);
+          let diff = desAng - curAng;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          const newAng = curAng + Math.sign(diff) * Math.min(Math.abs(diff), p.turnRate * dt);
+          p.vx = Math.cos(newAng) * p.speed;
+          p.vy = Math.sin(newAng) * p.speed;
+        }
+      }
+
+      const stepX = p.vx * dt;
+      const stepY = p.vy * dt;
+      p.x += stepX;
+      p.y += stepY;
+      p.distLeft -= Math.hypot(stepX, stepY);
+
+      if (Math.random() < 0.65) {
+        state.particles.push({
+          x: p.x, y: p.y,
+          vx: (Math.random() - 0.5) * 35,
+          vy: (Math.random() - 0.5) * 35,
+          r: p.radius * 0.45,
+          color: p.color,
+          life: 0.22,
+          maxLife: 0.22
+        });
+      }
+
+      if (p.distLeft <= 0) {
+        state.projectiles.splice(i, 1);
+        continue;
+      }
+
+      // Pillar collision
+      let hitPillar = false;
+      for (const pl of state.pillars) {
+        if (pl.hp <= 0) continue;
+        if (Math.hypot(p.x - pl.x, p.y - pl.y) < p.radius + pl.radius) {
+          pl.hp -= p.dmg;
+          spawnParticles(p.x, p.y, p.color, 12, 150);
+          sfx.play('hit');
+          hitPillar = true;
+          break;
+        }
+      }
+      if (hitPillar) { state.projectiles.splice(i, 1); continue; }
+
+      // Projectile vs Projectile collision
+      let collidedProj = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const q = state.projectiles[j];
+        if (q.ownerId === p.ownerId) continue;
+        if (Math.hypot(p.x - q.x, p.y - q.y) < p.radius + q.radius) {
+          const mx = (p.x + q.x) * 0.5, my = (p.y + q.y) * 0.5;
+          spawnParticles(mx, my, '#fff176', 18, 200);
+          state.shockwaves.push({ x: mx, y: my, r: 6, maxR: 42, color: '#ffab40', alpha: 0.9 });
+          sfx.play('hit');
+          state.projectiles.splice(i, 1);
+          state.projectiles.splice(j, 1);
+          i--;
+          collidedProj = true;
+          break;
+        }
+      }
+      if (collidedProj) continue;
+
+      // Projectile vs Warlock
+      let hitUnit = false;
+      for (const w of state.warlocks) {
+        if (!w.alive || w.id === p.ownerId) continue;
+        if (Math.hypot(p.x - w.x, p.y - w.y) < p.radius + w.radius) {
+          // Reflect Shield check!
+          if (w.shieldTimer > 0) {
+            p.vx = -p.vx * 1.15;
+            p.vy = -p.vy * 1.15;
+            p.ownerId = w.id;
+            p.distLeft = Math.max(p.distLeft, 450);
+            addFloatingText(w.x, w.y - 26, '反弹!', '#ffd740');
+            spawnParticles(p.x, p.y, '#ffd740', 14, 180);
+            sfx.play('reflect');
+            break;
+          }
+
+          const owner = state.warlocks.find(u => u.id === p.ownerId);
+          if (p.type === 'swap' && owner && owner.alive) {
+            const ox = owner.x, oy = owner.y;
+            owner.x = w.x; owner.y = w.y;
+            w.x = ox; w.y = oy;
+            owner.vx = 0; owner.vy = 0;
+            w.vx = 0; w.vy = 0;
+            w.lastHitBy = owner.id;
+            w.lastHitTime = state.time;
+            spawnParticles(owner.x, owner.y, '#e040fb', 18, 160);
+            spawnParticles(w.x, w.y, '#e040fb', 18, 160);
+            addFloatingText(w.x, w.y - 24, '换位!', '#ea80fc');
+            sfx.play('swap');
+          } else {
+            const sp = Math.hypot(p.vx, p.vy) || 1;
+            applyDamageAndKnockback(w, owner, p.dmg, (p.vx / sp) * p.kb, (p.vy / sp) * p.kb);
+            spawnParticles(p.x, p.y, p.color, 18, 210);
+            state.shockwaves.push({ x: p.x, y: p.y, r: 6, maxR: 36, color: p.color, alpha: 0.85 });
+            state.shake = Math.max(state.shake, 5);
+            sfx.play('hit');
+          }
+          hitUnit = true;
+          break;
+        }
+      }
+      if (hitUnit) state.projectiles.splice(i, 1);
+    }
+
+    // Update Particles, Shockwaves, Floating Texts
+    for (let i = state.particles.length - 1; i >= 0; i--) {
+      const pt = state.particles[i];
+      pt.x += pt.vx * dt; pt.y += pt.vy * dt;
+      pt.vx *= 0.94; pt.vy *= 0.94;
+      pt.life -= dt;
+      if (pt.life <= 0) state.particles.splice(i, 1);
+    }
+    for (let i = state.shockwaves.length - 1; i >= 0; i--) {
+      const sw = state.shockwaves[i];
+      sw.r += (sw.maxR - sw.r) * Math.min(1, dt * 11);
+      sw.alpha -= dt * 2.4;
+      if (sw.alpha <= 0) state.shockwaves.splice(i, 1);
+    }
+    for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = state.floatingTexts[i];
+      ft.y -= dt * 36;
+      ft.life -= dt;
+      if (ft.life <= 0) state.floatingTexts.splice(i, 1);
+    }
+    if (state.moveMarker) {
+      state.moveMarker.life -= dt;
+      if (state.moveMarker.life <= 0) state.moveMarker = null;
+    }
+
+    // Check round end condition
+    if (state.mode === 'combat') {
+      const aliveList = state.warlocks.filter(w => w.alive);
+      if (aliveList.length <= 1) {
+        finishRound(aliveList[0] || null);
+      }
+    }
+
+    // Smooth camera follow (slightly biased toward player, centered on arena)
+    if (player && player.alive) {
+      state.cameraX += (player.x * 0.28 - state.cameraX) * Math.min(1, dt * 5);
+      state.cameraY += (player.y * 0.28 - state.cameraY) * Math.min(1, dt * 5);
+    } else {
+      state.cameraX += (0 - state.cameraX) * Math.min(1, dt * 3);
+      state.cameraY += (0 - state.cameraY) * Math.min(1, dt * 3);
+    }
+
+    updateHud();
+  }
+
+  function updatePlayerMovement(w, dt) {
+    const speed = getWarlockMoveSpeed(w);
+    let ix = 0, iy = 0;
+
+    // Arrow keys always move; WASD moves only in 'wasd' controlMode
+    if (state.keys['ArrowUp'] || (settings.controlMode === 'wasd' && state.keys['KeyW'])) iy -= 1;
+    if (state.keys['ArrowDown'] || (settings.controlMode === 'wasd' && state.keys['KeyS'])) iy += 1;
+    if (state.keys['ArrowLeft'] || (settings.controlMode === 'wasd' && state.keys['KeyA'])) ix -= 1;
+    if (state.keys['ArrowRight'] || (settings.controlMode === 'wasd' && state.keys['KeyD'])) ix += 1;
+
+    // Touch joystick
+    if (state.touchVec.active) {
+      ix = state.touchVec.x;
+      iy = state.touchVec.y;
+    }
+
+    if (ix !== 0 || iy !== 0) {
+      // Cancel right-click waypoint if WASD/joystick used
+      w.targetX = null;
+      w.targetY = null;
+      const mag = Math.hypot(ix, iy) || 1;
+      const desiredVx = (ix / mag) * speed;
+      const desiredVy = (iy / mag) * speed;
+      const accel = 8.5 * dt;
+      w.vx += (desiredVx - w.vx) * Math.min(1, accel);
+      w.vy += (desiredVy - w.vy) * Math.min(1, accel);
+      w.facing = Math.atan2(desiredVy, desiredVx);
+    } else if (w.targetX !== null && w.targetY !== null) {
+      const dx = w.targetX - w.x;
+      const dy = w.targetY - w.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 10) {
+        w.targetX = null;
+        w.targetY = null;
+      } else {
+        const desiredVx = (dx / d) * speed;
+        const desiredVy = (dy / d) * speed;
+        const accel = 8.5 * dt;
+        w.vx += (desiredVx - w.vx) * Math.min(1, accel);
+        w.vy += (desiredVy - w.vy) * Math.min(1, accel);
+        w.facing = Math.atan2(desiredVy, desiredVx);
+      }
+    }
+  }
+
+  /* ========================
+     10. CANVAS RENDERING
+     ======================== */
+  function render() {
+    const dpr = window.devicePixelRatio || 1;
+    const cw = canvas.width / dpr;
+    const ch = canvas.height / dpr;
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    // Compute dynamic zoom so entire arena fits nicely
+    const minDim = Math.min(cw, ch - 130);
+    state.zoom = Math.max(0.45, Math.min(1.05, minDim / (state.arenaBaseRadius * 2.28)));
+
+    // Background Lava Sea
+    drawLavaBackground(cw, ch);
+
+    // Camera transform
+    const shakeX = state.shake ? (Math.random() - 0.5) * state.shake : 0;
+    const shakeY = state.shake ? (Math.random() - 0.5) * state.shake : 0;
+    ctx.translate(cw / 2 + shakeX, (ch - 40) / 2 + shakeY);
+    ctx.scale(state.zoom, state.zoom);
+    ctx.translate(-state.cameraX, -state.cameraY);
+
+    // Update mouse world coords
+    state.mouseWorldX = (state.mouseScreenX - cw / 2) / state.zoom + state.cameraX;
+    state.mouseWorldY = (state.mouseScreenY - (ch - 40) / 2) / state.zoom + state.cameraY;
+
+    // Draw Stone Arena Platform
+    drawArenaPlatform();
+
+    // Draw Gravity Wells
+    for (const g of state.gravities) {
+      const pulse = 1 + Math.sin(state.time * 9) * 0.08;
+      const grad = ctx.createRadialGradient(g.x, g.y, 4, g.x, g.y, g.radius * pulse);
+      grad.addColorStop(0, 'rgba(20, 0, 45, 0.92)');
+      grad.addColorStop(0.35, 'rgba(124, 77, 255, 0.45)');
+      grad.addColorStop(1, 'rgba(124, 77, 255, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.radius * pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Swirl rings
+      ctx.strokeStyle = 'rgba(209, 196, 233, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(g.x, g.y, g.radius * 0.45, state.time * 5, state.time * 5 + Math.PI * 1.4);
+      ctx.stroke();
+    }
+
+    // Draw Meteor Targets
+    for (const m of state.meteors) {
+      const prog = 1 - m.timer / m.maxTimer;
+      ctx.save();
+      ctx.fillStyle = `rgba(255, 61, 0, ${0.14 + prog * 0.22})`;
+      ctx.strokeStyle = '#ff6d00';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Expanding inner warning ring
+      ctx.strokeStyle = '#ffd740';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.radius * prog, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Falling meteor rock shadow & fiery boulder
+      const h = (1 - prog) * 340;
+      const mx = m.x + h * 0.35;
+      const my = m.y - h;
+      const grad = ctx.createRadialGradient(mx, my, 4, mx, my, 32);
+      grad.addColorStop(0, '#fff59d');
+      grad.addColorStop(0.5, '#ff6d00');
+      grad.addColorStop(1, 'rgba(191, 54, 12, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(mx, my, 32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Move marker (WC3 green arrows)
+    if (state.moveMarker) {
+      const mk = state.moveMarker;
+      const r = 8 + (1 - mk.life / 0.45) * 14;
+      ctx.strokeStyle = `rgba(105, 240, 174, ${mk.life / 0.45})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(mk.x, mk.y, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Draw Pillars
+    for (const pl of state.pillars) {
+      if (pl.hp <= 0) continue;
+      ctx.save();
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.beginPath();
+      ctx.arc(pl.x + 4, pl.y + 6, pl.radius + 2, 0, Math.PI * 2);
+      ctx.fill();
+
+      const pg = ctx.createRadialGradient(pl.x - 6, pl.y - 6, 3, pl.x, pl.y, pl.radius);
+      pg.addColorStop(0, '#6d625a');
+      pg.addColorStop(1, '#2c2523');
+      ctx.fillStyle = pg;
+      ctx.strokeStyle = '#9e8b76';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(pl.x, pl.y, pl.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Arcane rune inside pillar
+      ctx.strokeStyle = `rgba(255, 171, 64, ${0.35 + (pl.hp / pl.maxHp) * 0.5})`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(pl.x, pl.y, pl.radius * 0.55, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw Shockwaves
+    for (const sw of state.shockwaves) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, sw.alpha);
+      ctx.strokeStyle = sw.color;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(sw.x, sw.y, sw.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw Warlocks
+    for (const w of state.warlocks) {
+      if (!w.alive) continue;
+      drawWarlock(w);
+    }
+
+    // Draw Projectiles
+    for (const p of state.projectiles) {
+      ctx.save();
+      const grad = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, p.radius * 1.9);
+      grad.addColorStop(0, p.core);
+      grad.addColorStop(0.5, p.color);
+      grad.addColorStop(1, 'rgba(255, 87, 34, 0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius * 1.9, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = p.core;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius * 0.65, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Draw Particles
+    for (const pt of state.particles) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+      ctx.fillStyle = pt.color;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Draw Floating Texts
+    for (const ft of state.floatingTexts) {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, ft.life / ft.maxLife);
+      ctx.font = 'bold 15px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(ft.text, ft.x, ft.y);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function drawLavaBackground(cw, ch) {
+    const t = state.time;
+    const grad = ctx.createRadialGradient(cw / 2, ch / 2, 60, cw / 2, ch / 2, Math.max(cw, ch) * 0.78);
+    grad.addColorStop(0, '#5a1608');
+    grad.addColorStop(0.55, '#3b0b04');
+    grad.addColorStop(1, '#1a0402');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, cw, ch);
+
+    // Animated glowing magma veins
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 110, 30, 0.24)';
+    ctx.lineWidth = 3;
+    const step = 95;
+    for (let y = -step; y < ch + step; y += step) {
+      ctx.beginPath();
+      for (let x = 0; x <= cw; x += 48) {
+        const wave = Math.sin(x * 0.012 + t * 1.1 + y * 0.02) * 16;
+        if (x === 0) ctx.moveTo(x, y + wave);
+        else ctx.lineTo(x, y + wave);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawArenaPlatform() {
+    const r = state.arenaRadius;
+
+    // Outer magma glow rim
+    const glow = ctx.createRadialGradient(0, 0, Math.max(10, r - 10), 0, 0, r + 42);
+    glow.addColorStop(0, 'rgba(255, 111, 0, 0.85)');
+    glow.addColorStop(0.5, 'rgba(255, 61, 0, 0.35)');
+    glow.addColorStop(1, 'rgba(255, 61, 0, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 42, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Stone base
+    const stoneGrad = ctx.createRadialGradient(-r * 0.2, -r * 0.2, 20, 0, 0, r);
+    stoneGrad.addColorStop(0, '#443b37');
+    stoneGrad.addColorStop(0.7, '#2d2624');
+    stoneGrad.addColorStop(1, '#1d1716');
+    ctx.fillStyle = stoneGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Carved stone rune rings
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(245, 197, 66, 0.14)';
+    ctx.lineWidth = 2;
+    [r * 0.28, r * 0.56, r * 0.82].forEach(rr => {
+      ctx.beginPath();
+      ctx.arc(0, 0, rr, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // Radial stone slabs
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * 30, Math.sin(a) * 30);
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.stroke();
+    }
+
+    // Center arcane emblem
+    ctx.strokeStyle = 'rgba(255, 171, 64, 0.25)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 32, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Shrinking danger zone outer band
+    if (state.shrinkWarning > 0 && r > 80) {
+      const nextR = Math.max(70, state.arenaTargetRadius - 58);
+      const blink = 0.22 + Math.abs(Math.sin(state.time * 7)) * 0.28;
+      ctx.fillStyle = `rgba(255, 61, 0, ${blink})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.arc(0, 0, nextR, 0, Math.PI * 2, true);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // Crisp stone rim border
+    ctx.strokeStyle = '#7d5f3e';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function drawWarlock(w) {
+    ctx.save();
+    ctx.translate(w.x, w.y);
+
+    // Player selection ring (classic WC3 bright green circle!)
+    if (w.isPlayer) {
+      ctx.strokeStyle = 'rgba(105, 240, 174, 0.85)';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.arc(0, 0, w.radius + 6, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+    ctx.beginPath();
+    ctx.ellipse(0, 8, w.radius * 0.95, w.radius * 0.65, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Warlock Cloak & Shoulders
+    ctx.save();
+    ctx.rotate(w.facing);
+    ctx.fillStyle = w.hitFlash > 0 ? '#ffffff' : w.color;
+    ctx.strokeStyle = '#140f12';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(0, 0, w.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Hood & Glowing Eyes
+    ctx.fillStyle = '#1b141a';
+    ctx.beginPath();
+    ctx.arc(3, 0, w.radius * 0.56, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = w.accent;
+    ctx.beginPath();
+    ctx.arc(9, -4, 2.3, 0, Math.PI * 2);
+    ctx.arc(9, 4, 2.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arcane Staff Orb held forward
+    const castExtend = w.castAnim > 0 ? 7 : 0;
+    ctx.strokeStyle = '#8d6e63';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(4, 13);
+    ctx.lineTo(18 + castExtend, 13);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffab40';
+    ctx.beginPath();
+    ctx.arc(20 + castExtend, 13, 4.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // Reflect Shield Dome
+    if (w.shieldTimer > 0) {
+      ctx.strokeStyle = '#ffd740';
+      ctx.fillStyle = 'rgba(255, 215, 64, 0.18)';
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      ctx.arc(0, 0, w.radius + 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Overhead HP Bar & Nameplate
+    const barW = 44, barH = 5;
+    const hpRatio = Math.max(0, w.hp / w.maxHp);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.72)';
+    ctx.fillRect(-barW / 2 - 1, -w.radius - 16, barW + 2, barH + 2);
+    ctx.fillStyle = w.isPlayer ? '#2ecc71' : (hpRatio < 0.35 ? '#e74c3c' : '#ff7043');
+    ctx.fillRect(-barW / 2, -w.radius - 15, barW * hpRatio, barH);
+
+    ctx.font = '600 11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = w.isPlayer ? '#ffe082' : '#e0d6c8';
+    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    ctx.lineWidth = 2.5;
+    ctx.strokeText(w.name, 0, -w.radius - 20);
+    ctx.fillText(w.name, 0, -w.radius - 20);
+
+    ctx.restore();
+  }
+
+  /* ========================
+     11. UI RENDERING (HUD & SHOP)
+     ======================== */
+  function getSpellDisplayKey(spell) {
+    if (settings.controlMode === 'wasd') {
+      const map = { fireball: '左键', teleport: '空格', thrust: 'Q', shield: 'E', swap: 'R', meteor: 'F', homing: '1', gravity: '2' };
+      return map[spell.id] || spell.key;
+    }
+    return spell.key;
+  }
+
+  function renderSpellBar() {
+    const p = getPlayer();
+    if (!p) return;
+    spellBar.innerHTML = SPELLS.map(s => {
+      const lvl = p.spellLevels[s.id] || 0;
+      const locked = lvl === 0;
+      const cd = p.cooldowns[s.id] || 0;
+      const dispKey = getSpellDisplayKey(s);
+      return `
+        <button class="spell-slot ${locked ? 'locked' : ''} ${cd > 0 ? 'on-cd' : ''}" data-spell="${s.id}" title="${s.name} (${dispKey}) - ${s.desc}">
+          <span class="spell-key">${dispKey}</span>
+          ${lvl > 0 ? `<span class="spell-lvl">Lv${lvl}</span>` : ''}
+          <span class="spell-icon">${s.icon}</span>
+          <span class="spell-name">${s.name}</span>
+          ${cd > 0 ? `<div class="spell-cd-overlay">${cd.toFixed(1)}</div>` : ''}
+        </button>
+      `;
+    }).join('');
+  }
+
+  function updateSpellCooldownDom() {
+    const p = getPlayer();
+    if (!p) return;
+    const btns = spellBar.querySelectorAll('.spell-slot');
+    btns.forEach(btn => {
+      const id = btn.dataset.spell;
+      const lvl = p.spellLevels[id] || 0;
+      const cd = p.cooldowns[id] || 0;
+      btn.classList.toggle('locked', lvl === 0);
+      btn.classList.toggle('on-cd', cd > 0);
+      let ov = btn.querySelector('.spell-cd-overlay');
+      if (cd > 0) {
+        if (!ov) {
+          ov = document.createElement('div');
+          ov.className = 'spell-cd-overlay';
+          btn.appendChild(ov);
+        }
+        ov.textContent = cd >= 1 ? cd.toFixed(1) : cd.toFixed(1);
+      } else if (ov) {
+        ov.remove();
+      }
+    });
+  }
+
+  function renderMiniItems() {
+    const p = getPlayer();
+    if (!p) return;
+    heroItemsMini.innerHTML = ITEMS.map(it => {
+      const lvl = p.items[it.id] || 0;
+      return `<div class="item-mini-slot ${lvl > 0 ? 'owned' : ''}" title="${it.name} Lv.${lvl}: ${lvl > 0 ? it.statText(lvl) : it.desc}">
+        ${it.icon}${lvl > 0 ? `<span class="item-mini-lvl">${lvl}</span>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function updateHud() {
+    const p = getPlayer();
+    if (!p) return;
+    hudRound.textContent = `${state.round} / ${settings.rounds}`;
+    const aliveCnt = state.warlocks.filter(w => w.alive).length;
+    hudAlive.textContent = `${aliveCnt} / ${state.warlocks.length}`;
+    hudGold.textContent = `${p.gold}G`;
+    hudKills.textContent = `${p.kills}`;
+
+    if (state.mode === 'prep') {
+      hudPhaseLabel.textContent = '整备';
+      hudTimer.textContent = `${Math.ceil(state.phaseTimer)}s`;
+    } else if (state.mode === 'combat') {
+      hudPhaseLabel.textContent = state.arenaTargetRadius <= 75 ? '决战圈' : '缩圈';
+      hudTimer.textContent = state.arenaTargetRadius <= 75 ? '🔥 最小' : `${Math.ceil(state.shrinkTimer)}s`;
+    } else if (state.mode === 'round_end') {
+      hudPhaseLabel.textContent = '结算';
+      hudTimer.textContent = `${Math.ceil(state.phaseTimer)}s`;
+    }
+
+    const hpPct = Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100));
+    heroHpFill.style.width = `${hpPct}%`;
+    heroHpFill.classList.toggle('low', hpPct < 35);
+    heroHpText.textContent = p.alive ? `${Math.ceil(p.hp)} / ${p.maxHp}` : '已阵亡 (观战中)';
+    heroLavaWarn.style.display = (p.alive && p.inLava) ? 'inline' : 'none';
+
+    updateSpellCooldownDom();
+  }
+
+  function openShop() {
+    if (state.mode === 'menu' || state.mode === 'match_end') return;
+    modalShop.classList.add('open');
+    renderShop();
+  }
+
+  function renderShop() {
+    const p = getPlayer();
+    if (!p) return;
+    shopGoldEl.textContent = `${p.gold}G`;
+    btnShopReady.style.display = state.mode === 'prep' ? 'inline-flex' : 'none';
+
+    if (state.shopTab === 'spells') {
+      shopGrid.innerHTML = SPELLS.map(s => {
+        const lvl = p.spellLevels[s.id] || 0;
+        const isMax = lvl >= s.maxLvl;
+        const cost = getSpellCost(s, lvl);
+        const canBuy = !isMax && p.gold >= cost;
+        const st = s.stats(Math.max(1, lvl));
+        const statLine = [
+          st.dmg ? `伤害 ${Math.round(st.dmg)}` : '',
+          st.kb ? `击退 ${Math.round(st.kb)}` : '',
+          st.duration ? `持续 ${st.duration.toFixed(1)}s` : '',
+          `冷却 ${st.cd.toFixed(1)}s`
+        ].filter(Boolean).join(' · ');
+
+        return `
+          <div class="shop-card">
+            <div>
+              <div class="shop-card-top">
+                <div class="shop-card-icon">${s.icon}</div>
+                <div>
+                  <div class="shop-card-title">${s.name} <span style="font-size:11px;color:#ffd54f;">[${s.key}]</span> <span style="font-size:11px;color:#80d8ff;">Lv.${lvl}/${s.maxLvl}</span></div>
+                  <div class="shop-card-desc">${s.desc}</div>
+                </div>
+              </div>
+              <div class="shop-card-stats" style="margin-top:8px;">${statLine}</div>
+            </div>
+            <button class="shop-buy-btn" data-buy-type="spell" data-id="${s.id}" ${canBuy ? '' : 'disabled'}>
+              ${isMax ? '已满级' : (lvl === 0 ? `学习法术 (${cost}G)` : `升级至 Lv.${lvl + 1} (${cost}G)`)}
+            </button>
+          </div>
+        `;
+      }).join('');
+    } else {
+      shopGrid.innerHTML = ITEMS.map(it => {
+        const lvl = p.items[it.id] || 0;
+        const isMax = lvl >= it.maxLvl;
+        const cost = getItemCost(it, lvl);
+        const canBuy = !isMax && p.gold >= cost;
+        return `
+          <div class="shop-card">
+            <div>
+              <div class="shop-card-top">
+                <div class="shop-card-icon">${it.icon}</div>
+                <div>
+                  <div class="shop-card-title">${it.name} <span style="font-size:11px;color:#80d8ff;">Lv.${lvl}/${it.maxLvl}</span></div>
+                  <div class="shop-card-desc">${it.desc}</div>
+                </div>
+              </div>
+              <div class="shop-card-stats" style="margin-top:8px;">${lvl > 0 ? '当前：' + it.statText(lvl) : '下一级：' + it.statText(1)}</div>
+            </div>
+            <button class="shop-buy-btn" data-buy-type="item" data-id="${it.id}" ${canBuy ? '' : 'disabled'}>
+              ${isMax ? '已满级' : (lvl === 0 ? `锻造装备 (${cost}G)` : `强化至 Lv.${lvl + 1} (${cost}G)`)}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  function handleBuy(type, id) {
+    const p = getPlayer();
+    if (!p) return;
+    if (type === 'spell') {
+      const s = SPELLS.find(x => x.id === id);
+      const lvl = p.spellLevels[id] || 0;
+      if (!s || lvl >= s.maxLvl) return;
+      const cost = getSpellCost(s, lvl);
+      if (p.gold < cost) return;
+      p.gold -= cost;
+      p.spellLevels[id] = lvl + 1;
+      sfx.play('buy');
+      renderSpellBar();
+      renderShop();
+      updateHud();
+      showToast(`${lvl === 0 ? '已学会' : '已升级'} ${s.name} (Lv.${lvl + 1})`);
+    } else {
+      const it = ITEMS.find(x => x.id === id);
+      const lvl = p.items[id] || 0;
+      if (!it || lvl >= it.maxLvl) return;
+      const cost = getItemCost(it, lvl);
+      if (p.gold < cost) return;
+      p.gold -= cost;
+      p.items[id] = lvl + 1;
+      if (id === 'pendant') {
+        const oldMax = p.maxHp;
+        p.maxHp = getWarlockMaxHp(p);
+        p.hp += (p.maxHp - oldMax);
+      }
+      sfx.play('buy');
+      renderMiniItems();
+      renderShop();
+      updateHud();
+      showToast(`已强化 ${it.name} (Lv.${lvl + 1})`);
+    }
+  }
+
+  function openScoreboard(isMatchEnd = false) {
+    const sorted = [...state.warlocks].sort((a, b) => (b.wins - a.wins) || (b.kills - a.kills) || (b.totalDamage - a.totalDamage));
+    document.getElementById('score-modal-title').textContent = isMatchEnd ? '🏆 锦标赛最终战绩' : '🏆 竞技场战绩榜';
+    const champ = sorted[0];
+    document.getElementById('score-summary').textContent = isMatchEnd
+      ? `总冠军：${champ.name}（${champ.wins} 胜 · ${champ.kills} 击杀 · ${Math.round(champ.totalDamage)} 总伤害）`
+      : `当前第 ${state.round}/${settings.rounds} 回合 · 按 Tab 或点击关闭继续游戏`;
+
+    document.getElementById('score-tbody').innerHTML = sorted.map((w, idx) => `
+      <tr class="${w.isPlayer ? 'is-player' : ''}">
+        <td>${idx + 1}</td>
+        <td><span class="swatch" style="background:${w.color};"></span>${w.name}</td>
+        <td style="color:var(--gold);font-weight:700;">${w.wins}</td>
+        <td>${w.kills}</td>
+        <td>${Math.round(w.totalDamage)}</td>
+        <td>${w.alive ? '<span style="color:#69f0ae;">存活</span>' : '<span style="color:#ff8a80;">阵亡</span>'}</td>
+      </tr>
+    `).join('');
+
+    document.getElementById('match-end-actions').style.display = isMatchEnd ? 'flex' : 'none';
+    document.getElementById('btn-close-score').style.display = isMatchEnd ? 'none' : 'inline-flex';
+    modalScore.classList.add('open');
+  }
+
+  /* ========================
+     12. INPUT & EVENT BINDING
+     ======================== */
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+    canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+    render();
+  }
+
+  function bindEvents() {
+    window.addEventListener('resize', resizeCanvas);
+
+    // Setup option chips
+    document.querySelectorAll('.opt-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        const chip = e.target.closest('.opt-chip');
+        if (!chip) return;
+        row.querySelectorAll('.opt-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        const key = row.dataset.setting;
+        const val = chip.dataset.val;
+        settings[key] = (key === 'difficulty' || key === 'controlMode') ? val : Number(val);
+      });
+    });
+
+    document.getElementById('btn-start-game').addEventListener('click', startNewMatch);
+    document.getElementById('btn-shop').addEventListener('click', () => {
+      if (modalShop.classList.contains('open')) modalShop.classList.remove('open');
+      else openShop();
+    });
+    document.getElementById('btn-close-shop').addEventListener('click', () => modalShop.classList.remove('open'));
+    btnReady.addEventListener('click', startCombatPhase);
+    btnShopReady.addEventListener('click', startCombatPhase);
+
+    document.getElementById('btn-scoreboard').addEventListener('click', () => openScoreboard(false));
+    document.getElementById('btn-close-score').addEventListener('click', () => modalScore.classList.remove('open'));
+    document.getElementById('btn-rematch').addEventListener('click', startNewMatch);
+    document.getElementById('btn-back-menu').addEventListener('click', () => {
+      modalScore.classList.remove('open');
+      state.mode = 'menu';
+      modalStart.classList.add('open');
+    });
+
+    document.getElementById('btn-help').addEventListener('click', () => modalHelp.classList.add('open'));
+    document.getElementById('btn-close-help').addEventListener('click', () => modalHelp.classList.remove('open'));
+
+    btnSound.addEventListener('click', () => {
+      sfx.muted = !sfx.muted;
+      btnSound.textContent = sfx.muted ? '🔇 静音' : '🔊 音效';
+    });
+
+    btnPause.addEventListener('click', togglePause);
+
+    // Shop tabs & buy delegation
+    document.querySelectorAll('.shop-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        state.shopTab = tab.dataset.tab;
+        renderShop();
+      });
+    });
+
+    shopGrid.addEventListener('click', (e) => {
+      const btn = e.target.closest('.shop-buy-btn');
+      if (!btn || btn.disabled) return;
+      handleBuy(btn.dataset.buyType, btn.dataset.id);
+    });
+
+    // Clickable spell bar (auto-aims nearest enemy on click/tap)
+    spellBar.addEventListener('click', (e) => {
+      const slot = e.target.closest('.spell-slot');
+      if (!slot) return;
+      const p = getPlayer();
+      if (!p || !p.alive) return;
+      const id = slot.dataset.spell;
+      if (p.spellLevels[id] === 0) {
+        openShop();
+        return;
+      }
+      // Aim toward nearest living enemy (or arena center for teleport if in lava)
+      let tx = state.mouseWorldX, ty = state.mouseWorldY;
+      if (id === 'teleport' && p.inLava) {
+        tx = 0; ty = 0;
+      } else {
+        let best = null, bd = Infinity;
+        for (const o of state.warlocks) {
+          if (!o.alive || o.isPlayer) continue;
+          const d = Math.hypot(o.x - p.x, o.y - p.y);
+          if (d < bd) { bd = d; best = o; }
+        }
+        if (best) { tx = best.x; ty = best.y; }
+      }
+      castSpell(p, id, tx, ty);
+    });
+
+    // Canvas Mouse Controls
+    canvas.addEventListener('mousemove', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      state.mouseScreenX = e.clientX - rect.left;
+      state.mouseScreenY = e.clientY - rect.top;
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (state.paused || state.mode === 'menu' || state.mode === 'match_end') return;
+      const p = getPlayer();
+      if (!p || !p.alive) return;
+      const rect = canvas.getBoundingClientRect();
+      state.mouseScreenX = e.clientX - rect.left;
+      state.mouseScreenY = e.clientY - rect.top;
+      const cw = rect.width, ch = rect.height;
+      const wx = (state.mouseScreenX - cw / 2) / state.zoom + state.cameraX;
+      const wy = (state.mouseScreenY - (ch - 40) / 2) / state.zoom + state.cameraY;
+      p.targetX = wx;
+      p.targetY = wy;
+      state.moveMarker = { x: wx, y: wy, life: 0.45 };
+    });
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      sfx.init();
+      if (state.paused || state.mode !== 'combat' || modalShop.classList.contains('open')) return;
+      const p = getPlayer();
+      if (!p || !p.alive) return;
+      const rect = canvas.getBoundingClientRect();
+      state.mouseScreenX = e.clientX - rect.left;
+      state.mouseScreenY = e.clientY - rect.top;
+      const cw = rect.width, ch = rect.height;
+      const wx = (state.mouseScreenX - cw / 2) / state.zoom + state.cameraX;
+      const wy = (state.mouseScreenY - (ch - 40) / 2) / state.zoom + state.cameraY;
+      castSpell(p, 'fireball', wx, wy);
+    });
+
+    // Keyboard Controls
+    const KEY_SPELL_MAP_WAR3 = {
+      'KeyQ': 'fireball',
+      'KeyW': 'teleport',
+      'KeyE': 'thrust',
+      'KeyR': 'shield',
+      'KeyD': 'swap',
+      'KeyF': 'meteor',
+      'Digit1': 'homing',
+      'Digit2': 'gravity'
+    };
+    const KEY_SPELL_MAP_WASD = {
+      'Space': 'teleport',
+      'KeyQ': 'thrust',
+      'KeyE': 'shield',
+      'KeyR': 'swap',
+      'KeyF': 'meteor',
+      'Digit1': 'homing',
+      'Digit2': 'gravity'
+    };
+
+    window.addEventListener('keydown', (e) => {
+      state.keys[e.code] = true;
+      if (state.mode === 'menu' || state.mode === 'match_end') return;
+
+      if (e.code === 'KeyB') {
+        e.preventDefault();
+        if (modalShop.classList.contains('open')) modalShop.classList.remove('open');
+        else openShop();
+        return;
+      }
+      if (e.code === 'KeyP') {
+        e.preventDefault();
+        togglePause();
+        return;
+      }
+      if (e.code === 'Tab') {
+        e.preventDefault();
+        if (modalScore.classList.contains('open')) modalScore.classList.remove('open');
+        else openScoreboard(false);
+        return;
+      }
+      if (e.code === 'Escape') {
+        modalShop.classList.remove('open');
+        modalHelp.classList.remove('open');
+        if (state.mode !== 'match_end') modalScore.classList.remove('open');
+        return;
+      }
+
+      if (state.paused || modalShop.classList.contains('open')) return;
+      const activeMap = settings.controlMode === 'wasd' ? KEY_SPELL_MAP_WASD : KEY_SPELL_MAP_WAR3;
+      const spellId = activeMap[e.code];
+      if (spellId) {
+        if (e.code === 'Space') e.preventDefault();
+        // Note: W and D are dual-used if user holds WASD; only cast W/D on keydown if not in prep, or cast immediately!
+        // To ensure WASD movement never feels blocked while QWERDF casting works smoothly:
+        // Fireball(Q), Thrust(E), Shield(R), Meteor(F), Homing(1), Gravity(2) never conflict with WASD.
+        // For W (Teleport) and D (Swap): only cast if Shift is NOT required, wait - in Warlock Brawl QWERDF is iconic,
+        // so let's cast on keydown when in combat AND only if user is not actively holding another WASD key simultaneously, OR always cast on keydown!
+        // Actually, let's check: if someone uses Arrow keys or Right-click to move, W and D are pure spells!
+        // If someone presses W to move, teleporting unexpectedly would be jarring ONLY if they meant to walk.
+        // Let's keep Q/E/R/F/1/2 instant cast, and for W/D cast instant if right-click moving or Shift+W/D, wait no—let's make Q W E R D F all cast directly like War3! (And Arrow keys move without any conflict, plus right-click moves like War3!).
+        if (state.mode === 'combat') {
+          const p = getPlayer();
+          if (p && p.alive) {
+            castSpell(p, spellId, state.mouseWorldX, state.mouseWorldY);
+          }
+        }
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      state.keys[e.code] = false;
+    });
+
+    // Touch Joystick support on touch screens
+    const joy = document.getElementById('touch-joystick');
+    const knob = document.getElementById('touch-knob');
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      joy.style.display = 'flex';
+    }
+    let joyOrigin = null;
+    joy.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      sfx.init();
+      const rect = joy.getBoundingClientRect();
+      joyOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      state.touchVec.active = true;
+    }, { passive: false });
+
+    joy.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      if (!joyOrigin || !e.touches[0]) return;
+      const dx = e.touches[0].clientX - joyOrigin.x;
+      const dy = e.touches[0].clientY - joyOrigin.y;
+      const maxR = 36;
+      const d = Math.hypot(dx, dy);
+      const clamped = Math.min(d, maxR);
+      const ang = Math.atan2(dy, dx);
+      knob.style.transform = `translate(${Math.cos(ang) * clamped}px, ${Math.sin(ang) * clamped}px)`;
+      state.touchVec.x = d > 4 ? Math.cos(ang) : 0;
+      state.touchVec.y = d > 4 ? Math.sin(ang) : 0;
+    }, { passive: false });
+
+    joy.addEventListener('touchend', () => {
+      state.touchVec.active = false;
+      state.touchVec.x = 0;
+      state.touchVec.y = 0;
+      knob.style.transform = 'translate(0px, 0px)';
+    });
+  }
+
+  function togglePause() {
+    if (state.mode === 'menu' || state.mode === 'match_end') return;
+    state.paused = !state.paused;
+    btnPause.textContent = state.paused ? '▶ 继续' : '⏸ 暂停';
+    if (state.paused) showBanner('游戏已暂停', '按 P 或点击继续按钮恢复战斗', 0);
+    else centerBanner.classList.remove('visible');
+  }
+
+  /* ========================
+     13. MAIN LOOP
+     ======================== */
+  function loop(ts) {
+    if (!state.lastTs) state.lastTs = ts;
+    const dt = Math.min(0.05, (ts - state.lastTs) / 1000);
+    state.lastTs = ts;
+
+    update(dt);
+    render();
+    state.rafId = requestAnimationFrame(loop);
+  }
+
+  window.onload = () => {
+    bindEvents();
+    resizeCanvas();
+    if (state.rafId) cancelAnimationFrame(state.rafId);
+    state.lastTs = 0;
+    state.rafId = requestAnimationFrame(loop);
+  };
+})();
+</script>
+</body>
+</html>

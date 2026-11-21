@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>术士之战 — Warlock Brawl</title>
+    <meta name="description" content="魔兽争霸3经典RPG《术士之战》网页版：岩浆缩圈竞技场、击退弹射物理、六大经典法术、符文商店升级。提供重制版与原版风格单文件版两个版本。" />
+    <style>
+      :root {
+        --bg: #0c0908;
+        --fg: #efe5d5;
+        --dim: #9d8f7c;
+        --line: rgba(239, 229, 213, .14);
+        --ember: #e8622a;
+        --ember-soft: #ff8a4c;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; }
+      body {
+        min-height: 100vh;
+        background:
+          radial-gradient(1000px 600px at 50% -10%, rgba(232, 98, 42, .22), transparent 65%),
+          radial-gradient(700px 500px at 85% 105%, rgba(150, 40, 12, .18), transparent 70%),
+          var(--bg);
+        color: var(--fg);
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 24px 56px;
+      }
+      header { text-align: center; max-width: 760px; }
+      .kicker {
+        font-size: 11px;
+        letter-spacing: .38em;
+        text-transform: uppercase;
+        color: var(--ember-soft);
+        margin-bottom: 18px;
+      }
+      h1 {
+        font-family: "Cinzel", "Songti SC", Georgia, serif;
+        font-size: clamp(34px, 6vw, 62px);
+        line-height: 1.05;
+        margin: 0 0 16px;
+        letter-spacing: .04em;
+        text-shadow: 0 0 42px rgba(232, 98, 42, .35);
+      }
+      h1 span { display: block; font-size: .34em; letter-spacing: .3em; color: var(--dim); margin-top: 14px; }
+      header p {
+        margin: 0 auto;
+        max-width: 560px;
+        color: var(--dim);
+        font-size: 14.5px;
+        line-height: 1.85;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 18px;
+        width: 100%;
+        max-width: 760px;
+        margin-top: 44px;
+      }
+      a.card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 26px 24px 24px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: linear-gradient(160deg, rgba(239, 229, 213, .055), rgba(239, 229, 213, .015));
+        color: inherit;
+        text-decoration: none;
+        transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+      }
+      a.card:hover, a.card:focus-visible {
+        transform: translateY(-3px);
+        border-color: rgba(232, 98, 42, .55);
+        box-shadow: 0 18px 44px -22px rgba(232, 98, 42, .65);
+        outline: none;
+      }
+      .tag {
+        font-size: 10.5px;
+        letter-spacing: .22em;
+        text-transform: uppercase;
+        color: var(--ember-soft);
+      }
+      .card h2 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: .01em; }
+      .card p { margin: 0; font-size: 13.5px; line-height: 1.75; color: var(--dim); }
+      .go {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--fg);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .go::after { content: "→"; transition: transform .18s ease; }
+      a.card:hover .go::after { transform: translateX(4px); }
+      footer {
+        margin-top: 46px;
+        font-size: 12px;
+        color: rgba(157, 143, 124, .72);
+        text-align: center;
+        line-height: 1.9;
+      }
+      footer code {
+        font-family: "JetBrains Mono", ui-monospace, Consolas, monospace;
+        font-size: 11.5px;
+        color: rgba(239, 229, 213, .62);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="kicker">Warcraft III Custom RPG</div>
+      <h1>术士之战<span>WARLOCK BRAWL</span></h1>
+      <p>
+        岩浆缩圈竞技场、击退弹射物理、六大经典法术、符文商店升级与多流派 AI 术士锦标赛。<br />
+        两个版本，同一份规则内核，选一个进入。
+      </p>
+    </header>
+
+    <nav class="cards">
+      <a class="card" href="./app/">
+        <span class="tag">重制版 · React</span>
+        <h2>术士之战 重制版</h2>
+        <p>全量重制的界面与粒子特效，商店、HUD、状态弹窗俱全，适合长时间对战与观战。</p>
+        <span class="go">进入竞技场</span>
+      </a>
+      <a class="card" href="./classic/">
+        <span class="tag">原版风格 · 单文件</span>
+        <h2>Warlock Brawl · War3 RPG</h2>
+        <p>向魔兽争霸 3 自定义地图致敬的单文件版本，零依赖、加载极快，打开即玩。</p>
+        <span class="go">进入竞技场</span>
+      </a>
+    </nav>
+
+    <footer>
+      纯前端运行，无需登录，进度只保存在本地浏览器。<br />
+      源码：<code>app/</code> · <code>classic/</code>
+    </footer>
+  </body>
+</html>
